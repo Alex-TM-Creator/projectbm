@@ -1,0 +1,107 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // FUNÇÕES AUXILIARES (HELPERS)
+    // ==========================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // ==========================================
+    // REGRAS POR COLEÇÃO
+    // ==========================================
+
+    match /users/{userId} {
+      allow read, update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /accessLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+    
+    match /notificationReads/{readId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+
+    match /salesOrders/{orderId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated();
+        allow delete: if isAdmin();
+    }
+    
+    match /astec/{id} {
+        allow read, create, update: if isAuthenticated();
+        allow delete: if isAdmin();
+    }
+    
+    match /astecLaudos/{id} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAdmin();
+    }
+
+    match /reversalRequests/{id} {
+        allow read, create: if isAuthenticated();
+        allow update: if isAdmin(); // Assuming only admins can process reversals
+    }
+
+    match /discountApprovals/{id} {
+      allow read, create: if isAuthenticated();
+      allow update: if isAuthenticated(); // Let's allow any authenticated user to update, will be handled by specific logic.
+    }
+    
+    match /caixas/{id} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    match /caixaClosingAuthorizations/{id} {
+        allow read: if isAdmin();
+        allow create: if isAuthenticated();
+        allow update: if isAdmin();
+    }
+
+    // CADASTROS GERAIS
+    match /{collectionName}/{docId}
+      where collectionName in [
+        'roles', 'companies', 'branches', 'navigation', 'goaltypes', 'awardtypes', 
+        'periodgroups', 'pegaPixAwards', 'campaigns', 'cleaningProducts', 
+        'statuses', 'productCategories', 'brands', 'products', 
+        'stockingLocations', 'companyBranches', 'customers',
+        'suppliers', 'deliveryAssistants', 'drivers', 'teams', 'deliveryTypes',
+        'saleTypes', 'paymentMethods', 'services', 'markups', 'productModalities',
+        'fiscalObligations', 'freightCepRanges', 'caixaContas', 'productTypes',
+        'userRoles', 'customerCredits', 'goals', 'pegaPixGoals', 'stockMovements',
+        'cleaningRequests', 'transferOrders', 'deliveryPaymentOrders', 'deliveryTeamPaymentOrders',
+        'assemblyClosings'
+      ] {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

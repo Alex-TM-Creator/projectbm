@@ -1,0 +1,40 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permite a leitura pública da logo na tela de login
+    match /config/login-logo.png {
+      allow read;
+      allow write: if request.auth != null; // Apenas usuários autenticados (admins) podem alterar
+    }
+
+    // Permite a leitura pública dos logos das empresas
+    match /company-logos/{cnpj}/logo.png {
+      allow read;
+      allow write: if request.auth != null; // Idealmente, restrinja a administradores
+    }
+
+    // Permite que usuários autenticados escrevam seus próprios avatares
+    // e que qualquer um leia os avatares (comum para perfis)
+    match /avatars/{userId}/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Permite que usuários autenticados enviem mídias para campanhas
+    // e que qualquer um leia as mídias (para exibi-las no feed)
+    match /campaigns/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null;
+    }
+
+    // Restringe o acesso aos certificados digitais
+    match /certificates/{cnpj}/{fileName} {
+      // Nega a leitura pública para todos
+      allow read: if false; 
+      // Permite a escrita apenas para usuários autenticados (idealmente, deveria ser restrito a admins)
+      allow write: if request.auth != null;
+    }
+  }
+}

@@ -56,6 +56,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +76,7 @@ import {
   doc,
   serverTimestamp,
   where,
+  getDoc,
 } from "firebase/firestore";
 import type { AstecLaudo, AssistanceRequest, User } from "@/lib/definitions";
 import { format } from "date-fns";
@@ -116,7 +118,7 @@ export default function AstecReportsPage() {
           getDocs(query(collection(db, "astecLaudos"), orderBy("createdAt", "desc"))),
           user ? getDoc(doc(db, "users", user.uid)) : null,
         ]);
-        setLaudos(laudosSnap.docs.map(d => ({ id: d.id, ...d.data() } as AstecLaudo)));
+        setLaudos(laudosSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as AstecLaudo)));
         if (userSnap && userSnap.exists()) {
           setUserData(userSnap.data() as User);
         }

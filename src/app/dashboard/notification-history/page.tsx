@@ -517,7 +517,7 @@ export default function NotificationHistoryPage() {
                             onSelect={(date) => setEditingNotification({...editingNotification, endDate: date?.toISOString()})}
                             initialFocus
                             locale={ptBR}
-                            disabled={{ before: editingNotification.startDate ? parseISO(editingNotification.startDate) : undefined }}
+                            disabled={editingNotification.startDate ? { before: parseISO(editingNotification.startDate) } : undefined}
                         />
                         </PopoverContent>
                     </Popover>

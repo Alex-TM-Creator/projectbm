@@ -279,7 +279,7 @@ export default function DriverFreightPage() {
                   return (
                   <TableRow key={item.id}>
                     <TableCell className="font-mono flex items-center gap-2">
-                       {isOrder ? <Badge variant="secondary">Pedido #{item.orderNumber}</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-500">ASTEC #{item.assistanceNumber}</Badge>}
+                       {isOrder ? <Badge variant="secondary">Pedido #{(item as SalesOrder).orderNumber}</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-500">ASTEC #{(item as AssistanceRequest).assistanceNumber}</Badge>}
                     </TableCell>
                     <TableCell>{formatDate(date)}</TableCell>
                     <TableCell>{item.customerName}</TableCell>

@@ -265,7 +265,7 @@ export default function SuppliersPage() {
         if (data && data.inscricao_estadual) {
             setCurrentSupplier(prev => ({...prev, inscricaoEstadual: data.inscricao_estadual}));
         } else {
-            toast({ title: "Inscrição Estadual não encontrada", description: "Verifique o CNPJ e a UF ou insira manualmente.", variant: "secondary" });
+            toast({ title: "Inscrição Estadual não encontrada", description: "Verifique o CNPJ e a UF ou insira manualmente.", variant: "default" });
         }
     } catch(error) {
          toast({ title: "Erro ao buscar IE", variant: "destructive" });
@@ -335,11 +335,11 @@ export default function SuppliersPage() {
         const dataToSave: Omit<Supplier, 'id' | 'createdAt'> & { createdAt?: any } = {
             ...initialFormData,
             ...currentSupplier,
-            phones: currentSupplier.phones?.map(({id, ...rest}) => rest) || [],
+            phones: currentSupplier.phones || [],
             branchId: isEditing ? currentSupplier.branchId || '' : userData?.branchId || '',
             createdById: user?.uid || 'unknown',
             createdByName: user?.displayName || 'Sistema',
-        };
+        } as any;
 
         if (isEditing) {
             delete dataToSave.createdAt;

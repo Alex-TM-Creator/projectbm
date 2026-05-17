@@ -75,7 +75,7 @@ export default function DiscountReleasePage() {
                          permissions.canReleaseDiscount?.roleIds?.includes(currentUser?.roleId || '') || 
                          permissions.canReleaseDiscount?.userIds?.includes(currentUser?.id || '');
 
-      setHasPermission(canRelease);
+      setHasPermission(!!canRelease);
 
       if (canRelease) {
         const allApprovals = approvalsSnap.docs.map(d => ({ id: d.id, ...d.data() } as DiscountApproval));

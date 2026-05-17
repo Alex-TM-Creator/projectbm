@@ -47,6 +47,7 @@ export type User = {
   avatarUrl: string;
   disabled?: boolean;
   notes?: { [periodGroupId: string]: string };
+  phones?: Phone[];
 };
 
 export type Seller = User & {
@@ -655,13 +656,13 @@ export type StockMovement = {
   id: string;
   productId: string;
   stockingLocationId: string;
-  type: 'sale' | 'purchase' | 'return' | 'transfer' | 'inventory_adjustment';
-  quantityChange: number; // Positive for increase, negative for decrease
-  reason?: string; // e.g., 'Perda', 'Roubo', 'Quebra'
-  relatedDocId?: string; // e.g., saleId, purchaseId, transferId
   lotId?: string;
-  valueChange?: number; // Valor financeiro associado (ex: subtotal da venda)
-  createdAt: any; // Firestore Timestamp
+  type: "sale" | "purchase" | "return" | "transfer" | "inventory_adjustment" | "sale_reversal" | "edit_reversal";
+  quantityChange: number;
+  valueChange?: number;
+  reason?: string;
+  relatedDocId?: string;
+  createdAt: any;
   userId: string;
   userName: string;
 };
@@ -1048,45 +1049,6 @@ export type Montador = {
   createdAt: any; // Firestore Timestamp
 };
 
-export type AssemblyClosingItem = {
-  productId: string;
-  productName: string;
-  internalCode?: string;
-  quantity: number;
-  unitPrice: number;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  total: number;
-  productTypeId: string;
-};
-
-export type AssemblyClosing = {
-  id: string;
-  montadorId: string;
-  montadorName: string;
-  closingDate: string;
-  items: AssemblyClosingItem[];
-  observations: string;
-  subtotalProducts: number;
-  subtotalAssistance: number;
-  totalGeral: number;
-  totalDescontos: number;
-  totalFinal: number;
-  totalNovo: number;
-  totalSalvado: number;
-  comissaoAplicada: boolean;
-  comissaoNovo: number;
-  comissaoSalvado: number;
-  totalComissao: number;
-  bonus: number;
-  totalPremio: number;
-  createdAt: any;
-  createdByUserId: string;
-  createdByUserName: string;
-  status: 'pending' | 'paid';
-  paidAt?: any;
-};
-
 export type LabelFieldKey =
   | 'name'
   | 'internalCode'
@@ -1309,4 +1271,62 @@ export type NaturezaOperacao = {
   infoFisco?: string;
   branchId: string;
   createdAt: any;
+};
+
+export type AssemblyClosingItem = {
+  productId: string;
+  productName: string;
+  internalCode?: string;
+  quantity: number;
+  unitPrice: number;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  total: number;
+  productTypeId?: string;
+};
+
+export type AssemblyAssistanceItem = {
+  astecId: string;
+  assistanceNumber: number;
+  value: number;
+};
+
+export type AssemblyClosing = {
+  id?: string;
+  montadorId: string;
+  montadorName: string;
+  closingDate: string;
+  items: AssemblyClosingItem[];
+  assistanceItems: AssemblyAssistanceItem[];
+  observations: string;
+  subtotalProducts: number;
+  subtotalAssistance: number;
+  totalGeral: number;
+  totalDescontos: number;
+  totalFinal: number;
+  totalNovo: number;
+  totalSalvado: number;
+  comissaoAplicada: boolean;
+  comissaoNovo: number;
+  comissaoSalvado: number;
+  totalComissao: number;
+  bonus: number;
+  totalPremio: number;
+  createdAt?: any;
+  createdByUserId?: string;
+  createdByUserName?: string;
+  status: 'pending' | 'paid' | 'cancelled';
+};
+
+export type PurchaseSuggestion = {
+    supplierId: string;
+    supplierName: string;
+    products: {
+        productId: string;
+        productName: string;
+        quantityToOrder: number;
+        currentStock: number;
+        minimumStock: number;
+        maximumStock: number;
+    }[];
 };

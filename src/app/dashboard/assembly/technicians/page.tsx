@@ -123,12 +123,12 @@ export default function MontadoresPage() {
         });
          const discounts = filteredProductTypes.map(pt => {
             const existing = montador.automaticDiscounts?.find(d => d.productTypeId === pt.id);
-            return existing || { productTypeId: pt.id, productTypeName: pt.name, discountType: 'percentage', discountValue: 0 };
+            return existing || { productTypeId: pt.id, productTypeName: pt.name, discountType: 'percentage' as const, discountValue: 0 };
         });
         setCurrentMontador({...JSON.parse(JSON.stringify(montador)), productTypeCommissions: commissions, automaticDiscounts: discounts });
     } else {
          const commissions = filteredProductTypes.map(pt => ({ productTypeId: pt.id, productTypeName: pt.name, commissionPercentage: 0 }));
-         const discounts = filteredProductTypes.map(pt => ({ productTypeId: pt.id, productTypeName: pt.name, discountType: 'percentage', discountValue: 0 }));
+         const discounts = filteredProductTypes.map(pt => ({ productTypeId: pt.id, productTypeName: pt.name, discountType: 'percentage' as const, discountValue: 0 }));
          setCurrentMontador({...initialFormData, productTypeCommissions: commissions, automaticDiscounts: discounts });
     }
     setOpen(true);

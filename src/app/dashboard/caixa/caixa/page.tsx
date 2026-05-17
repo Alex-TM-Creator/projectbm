@@ -71,7 +71,7 @@ export default function CaixaPage() {
   const [justification, setJustification] = React.useState("");
   
   const totalReceived = React.useMemo(() => Object.values(receivedByMethod).reduce((sum, value) => sum + value, 0), [receivedByMethod]);
-  const totalConfirmed = React.useMemo(() => Object.values(confirmedAmounts).reduce((sum, value) => sum + (Number(value) || 0), 0), [confirmedAmounts]);
+  const totalConfirmed = React.useMemo(() => Object.values(confirmedAmounts).reduce<number>((sum, value) => sum + (typeof value === 'number' ? value : 0), 0), [confirmedAmounts]);
   const totalAdjustments = React.useMemo(() => (activeCaixa?.transactions || []).reduce((sum, t) => sum + t.value, 0), [activeCaixa]);
   const currentBalance = (activeCaixa?.openingBalance || 0) + totalReceived + totalAdjustments;
   const difference = totalConfirmed - currentBalance;

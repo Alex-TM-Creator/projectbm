@@ -162,7 +162,7 @@ export default function LotsPage() {
       
       setLotNumber("");
       setLotValue("");
-      setLotValueRaw("");
+      setLotValueRaw(null);
       fetchData(user?.uid);
     } catch (e) {
       console.error(e);

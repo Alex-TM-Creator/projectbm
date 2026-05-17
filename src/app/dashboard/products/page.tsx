@@ -306,7 +306,7 @@ export default function ProductsPage() {
   
   const handleDuplicate = (productToDuplicate: Product) => {
     const newProduct = { ...productToDuplicate };
-    delete newProduct.id; 
+    delete (newProduct as Partial<Product>).id; 
     newProduct.name = `${newProduct.name} (Cópia)`;
     newProduct.internalCode = ''; 
     newProduct.barcode = '';

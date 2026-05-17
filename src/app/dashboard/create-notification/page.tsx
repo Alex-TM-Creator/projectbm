@@ -234,7 +234,7 @@ export default function CreateNotificationPage() {
                             onSelect={setEndDate}
                             initialFocus
                             locale={ptBR}
-                            disabled={{ before: startDate }}
+                            disabled={startDate ? { before: startDate } : undefined}
                         />
                         </PopoverContent>
                     </Popover>

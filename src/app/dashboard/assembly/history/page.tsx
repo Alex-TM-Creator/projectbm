@@ -53,6 +53,7 @@ import {
 const statusConfig: { [key in AssemblyClosing['status']]: { label: string; variant: "default" | "secondary" | "outline" | "destructive"; className?: string } } = {
   paid: { label: "Pago", variant: "default", className: "bg-green-600 hover:bg-green-700" },
   pending: { label: "Pendente", variant: "secondary" },
+  cancelled: { label: "Cancelado", variant: "destructive" },
 };
 
 export default function AssemblyHistoryPage() {
@@ -107,7 +108,7 @@ export default function AssemblyHistoryPage() {
   const handleDelete = async () => {
     if (!closingToDelete) return;
     try {
-      await deleteDoc(doc(db, "assemblyClosings", closingToDelete.id));
+      await deleteDoc(doc(db, "assemblyClosings", closingToDelete.id || ''));
       toast({ title: "Fechamento Excluído", variant: "destructive" });
       fetchData();
     } catch (error) {
@@ -154,7 +155,7 @@ export default function AssemblyHistoryPage() {
                 {closings.map(closing => {
                   const currentStatus = statusConfig[closing.status] || { label: 'Desconhecido', variant: 'secondary' };
                   return (
-                    <AccordionItem value={closing.id} key={closing.id} className="border rounded-lg">
+                    <AccordionItem value={closing.id || ''} key={closing.id || ''} className="border rounded-lg">
                       <AccordionTrigger className="p-4 hover:no-underline text-left">
                          <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-2">
                             <div className="flex-1 space-y-1">
@@ -171,15 +172,15 @@ export default function AssemblyHistoryPage() {
                       </AccordionTrigger>
                       <AccordionContent className="p-4 pt-0">
                         <div className="flex justify-end mb-4 border-b pb-4 gap-2">
-                           <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/assembly/history/${closing.id}`)}>
+                           <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/assembly/history/${closing.id || ''}`)}>
                               <Printer className="mr-2 h-4 w-4"/>Imprimir
                            </Button>
                            {closing.status === 'pending' ? (
-                             <Button size="sm" onClick={() => handleStatusChange(closing.id, 'paid')}>
+                             <Button size="sm" onClick={() => handleStatusChange(closing.id || '', 'paid')}>
                                 <Check className="mr-2 h-4 w-4" /> Marcar como Pago
                              </Button>
                            ) : (
-                             <Button variant="secondary" size="sm" onClick={() => handleStatusChange(closing.id, 'pending')}>
+                             <Button variant="secondary" size="sm" onClick={() => handleStatusChange(closing.id || '', 'pending')}>
                                 <X className="mr-2 h-4 w-4" /> Marcar como Pendente
                              </Button>
                            )}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import {
@@ -133,7 +133,7 @@ export default function LotReportPage() {
           if (pData) {
               const current = productMap.get(m.productId) || { launched: 0, sold: 0, revenue: 0, name: pData.name, code: pData.code, price: pData.price, salesDetails: [] };
               
-              if (m.type === 'edit_reversal' || m.type === 'sale_reversal' || m.type === 'return') {
+              if ((m.type as string) === 'edit_reversal' || (m.type as string) === 'sale_reversal' || m.type === 'return') {
                   // ReversÃ£o de ediÃ§Ã£o, cancelamento ou devoluÃ§Ã£o de pedido: reduz totalizadores
                   const qtySold = Math.abs(m.quantityChange);
                   const rev = m.valueChange !== undefined ? Math.abs(m.valueChange) : (qtySold * pData.price);
@@ -150,7 +150,7 @@ export default function LotReportPage() {
                   });
               } else if (m.quantityChange > 0) {
                   current.launched += m.quantityChange;
-              } else if (m.quantityChange < 0 && (m.type === 'sale' || m.type === 'return' || !m.type)) {
+              } else if (m.quantityChange < 0 && ((m.type as string) === 'sale' || (m.type as string) === 'return' || !m.type)) {
                   const qtySold = Math.abs(m.quantityChange);
                   const rev = m.valueChange !== undefined ? m.valueChange : (qtySold * pData.price);
                   current.sold += qtySold;

@@ -398,7 +398,7 @@ export default function SaleTypesPage() {
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="w-full justify-start font-normal">
-                              {getRoleNames(currentType.consolidateToRoleIds)}
+                              {getRoleNames(currentType.consolidateToRoleIds || undefined)}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-56">
@@ -495,7 +495,7 @@ export default function SaleTypesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {getRoleNames(type.consolidateToRoleIds).split(', ').map(roleName => (
+                          {getRoleNames(type.consolidateToRoleIds || undefined).split(', ').map(roleName => (
                               <Badge key={roleName} variant="outline" className="gap-1.5">
                                 <User className="h-3 w-3"/>{roleName}
                               </Badge>

@@ -72,7 +72,7 @@ export default function PrintCaixaPage() {
         
         const salesOrdersSnap = await getDocs(query(collection(db, "salesOrders")));
         const paymentMethodsSnap = await getDocs(collection(db, "paymentMethods"));
-        const paymentMethods = paymentMethodsSnap.docs.map(d => ({id: d.id, ...d.data() as PaymentMethod}));
+        const paymentMethods = paymentMethodsSnap.docs.map(d => ({...d.data() as PaymentMethod, id: d.id}));
         const getPaymentMethodName = (pmId: string) => paymentMethods.find(pm => pm.id === pmId)?.name || "N/A";
 
         const paymentsMap = new Map<string, GroupedPaymentDetail>();

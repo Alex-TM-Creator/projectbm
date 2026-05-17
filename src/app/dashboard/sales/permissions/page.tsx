@@ -57,7 +57,7 @@ export default function SalesPermissionsPage() {
   }, [toast]);
 
   const handleSelection = (
-    level: keyof Omit<SalesPermissions, 'viewBranchOrders' | 'canViewOwnOrders' | 'canApplyGeneralDiscount'>,
+    level: keyof Omit<SalesPermissions, 'viewBranchOrders' | 'canApplyGeneralDiscount'>,
     type: "userIds" | "roleIds",
     id: string
   ) => {

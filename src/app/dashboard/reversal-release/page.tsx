@@ -76,7 +76,7 @@ export default function ReversalReleasePage() {
                          permissions.canReleaseReversal?.roleIds?.includes(currentUser?.roleId || '') || 
                          permissions.canReleaseReversal?.userIds?.includes(currentUser?.id || '');
       
-      setHasPermission(canRelease);
+      setHasPermission(!!canRelease);
 
       if (canRelease) {
         const [reqsSnap, ordersSnap, paymentMethodsSnap, branchesSnap, companyBranchesSnap] = await Promise.all([

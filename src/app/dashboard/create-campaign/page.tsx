@@ -274,7 +274,7 @@ export default function CreateCampaignPage() {
                             onSelect={setEndDate}
                             initialFocus
                             locale={ptBR}
-                            disabled={{ before: startDate }}
+                            disabled={startDate ? { before: startDate } : undefined}
                         />
                         </PopoverContent>
                     </Popover>

@@ -153,24 +153,34 @@ export default function PegaPixAwardsPage() {
   };
   
   const handleResponsibleSelection = (id: string) => {
-    const stateSetter = isEditing ? setEditingAward : setFormData;
-    stateSetter(prev => {
-        const newResponsibleIds = [...(prev!.responsibleIds || [])];
-        const index = newResponsibleIds.indexOf(id);
-        if (index > -1) {
-            newResponsibleIds.splice(index, 1);
-        } else {
-            newResponsibleIds.push(id);
-        }
-        return {...prev!, responsibleIds: newResponsibleIds};
-    });
+    if (isEditing) {
+        setEditingAward(prev => {
+            if (!prev) return prev;
+            const newResponsibleIds = [...(prev.responsibleIds || [])];
+            const index = newResponsibleIds.indexOf(id);
+            if (index > -1) newResponsibleIds.splice(index, 1);
+            else newResponsibleIds.push(id);
+            return {...prev, responsibleIds: newResponsibleIds};
+        });
+    } else {
+        setFormData(prev => {
+            const newResponsibleIds = [...(prev.responsibleIds || [])];
+            const index = newResponsibleIds.indexOf(id);
+            if (index > -1) newResponsibleIds.splice(index, 1);
+            else newResponsibleIds.push(id);
+            return {...prev, responsibleIds: newResponsibleIds};
+        });
+    }
   };
 
   const handleCurrencyLikeChange = (level: keyof GoalLevelTargets) => (e: React.ChangeEvent<HTMLInputElement>) => {
       let rawValue = e.target.value.replace(/[^0-9]/g, '');
       const numericValue = rawValue ? parseInt(rawValue, 10) / 100 : 0;
-      const stateSetter = isEditing ? setEditingAward : setFormData;
-      stateSetter(prev => ({...prev!, levels: {...prev!.levels, [level]: numericValue }}));
+      if (isEditing) {
+          setEditingAward(prev => prev ? {...prev, levels: {...prev.levels, [level]: numericValue }} : prev);
+      } else {
+          setFormData(prev => ({...prev, levels: {...prev.levels, [level]: numericValue }}));
+      }
   };
   
   const formatCurrencyForInput = (value: number | undefined) => {
@@ -253,7 +263,7 @@ export default function PegaPixAwardsPage() {
         <div className="space-y-6">
             <div className="space-y-2">
                 <Label htmlFor="name">Nome do Prêmio</Label>
-                <Input id="name" value={data.name} onChange={(e) => setData(p => ({...p!, name: e.target.value}))} placeholder="Ex: Prêmio Pega Pix T1" disabled={isSubmitting}/>
+                <Input id="name" value={data.name} onChange={(e) => isEditing ? setEditingAward(p => p ? {...p, name: e.target.value} : p) : setFormData(p => ({...p, name: e.target.value}))} placeholder="Ex: Prêmio Pega Pix T1" disabled={isSubmitting}/>
             </div>
             <Card>
                 <CardHeader>
@@ -271,7 +281,7 @@ export default function PegaPixAwardsPage() {
             </Card>
             <div className="space-y-4">
                 <Label>Atribuir Prêmio para:</Label>
-                <Tabs value={data.responsibleType} onValueChange={(v) => setData(p => ({...p!, responsibleType: v as any, responsibleIds: []}))} className="w-full">
+                <Tabs value={data.responsibleType} onValueChange={(v) => isEditing ? setEditingAward(p => p ? {...p, responsibleType: v as any, responsibleIds: []} : p) : setFormData(p => ({...p, responsibleType: v as any, responsibleIds: []}))} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="user"><UserIcon className="mr-2 h-4 w-4" />Vendedor</TabsTrigger>
                     <TabsTrigger value="branch"><GitFork className="mr-2 h-4 w-4" />Filial</TabsTrigger>

@@ -187,7 +187,7 @@ export function IssueNfeModal({
     })) || [];
 
     const subtotalCalc = order.subtotal || order.items?.reduce((acc: number, item: any) => acc + (item.total || 0), 0) || 0;
-    const servicesCalc = order.servicesTotal || order.services?.reduce((acc: number, srv: any) => acc + (srv.total || 0), 0) || 0;
+    const servicesCalc = (order as any).servicesTotal || order.services?.reduce((acc: number, srv: any) => acc + (srv.total || 0), 0) || 0;
     const discountCalc = order.generalDiscountType === 'percentage' 
       ? (subtotalCalc * (order.generalDiscountValue || 0) / 100) 
       : (order.generalDiscountValue || 0);
@@ -363,7 +363,7 @@ export function IssueNfeModal({
     });
 
     // Funrural
-    const valorFunrural = nat.aliqFunrural > 0 ? totalProdutos * (nat.aliqFunrural / 100) : 0;
+    const valorFunrural = (nat.aliqFunrural || 0) > 0 ? totalProdutos * ((nat.aliqFunrural || 0) / 100) : 0;
 
     // Base ICMS ST (simplified placeholder — full ST requires MVA data per product)
     const totalImposto = valorIcms + valorIpi + valorPis + valorCofins + valorIssqn;

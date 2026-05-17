@@ -40,6 +40,8 @@ import { Button } from "@/components/ui/button";
 export default function TransferSuggestionsPage() {
   const { toast } = useToast();
   const [suggestions, setSuggestions] = React.useState<TransferSuggestion[]>([]);
+  const [branches, setBranches] = React.useState<Branch[]>([]);
+  const [locations, setLocations] = React.useState<StockingLocation[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const generateSuggestions = React.useCallback(async () => {
@@ -54,8 +56,11 @@ export default function TransferSuggestionsPage() {
       
       const products = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const stocks = stocksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductStock));
-      const locations = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as StockingLocation));
-      const branches = branchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+      const locationsData = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as StockingLocation));
+      const branchesData = branchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+
+      setLocations(locationsData);
+      setBranches(branchesData);
 
       const newSuggestions: TransferSuggestion[] = [];
 
@@ -78,8 +83,8 @@ export default function TransferSuggestionsPage() {
             const quantityToTransfer = Math.min(excessQuantity, shortageQuantity);
             
             if (quantityToTransfer > 0) {
-              const fromLocation = locations.find(l => l.id === source.stockingLocationId);
-              const toLocation = locations.find(l => l.id === dest.stockingLocationId);
+              const fromLocation = locationsData.find(l => l.id === source.stockingLocationId);
+              const toLocation = locationsData.find(l => l.id === dest.stockingLocationId);
               
               if (fromLocation && toLocation) {
                  newSuggestions.push({

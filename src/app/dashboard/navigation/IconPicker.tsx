@@ -34,7 +34,7 @@ export const iconTranslations: { [key: string]: string } = {
   "User": "Usuário", "Users": "Usuários", "UserPlus": "Mais Usuário", "UserCog": "Configurar Usuário", "Contact": "Contato", "BriefcaseBusiness": "Maleta", "Building2": "Prédios", "Building": "Prédio", "Shield": "Escudo", "ShieldCheck": "Escudo OK", "ShieldAlert": "Alerta Escudo", "Key": "Chave", "Lock": "Cadeado", "Unlock": "Destravar", "Briefcase": "Trabalho", "Glasses": "Óculos",
   "Calendar": "Calendário", "Clock": "Relógio", "Timer": "Temporizador", "FileClock": "Histórico Arq.", "History": "Histórico", "CalendarDays": "Dias", "CalendarCheck": "Verificar Cal.", "CalendarPlus": "Adicionar no Cal.",
   "FileText": "Texto", "Folder": "Pasta", "Image": "Imagem", "Video": "Vídeo", "Camera": "Câmera", "Paperclip": "Clipes", "File": "Arquivo", "FilePlus": "Novo Arq.", "FileMinus": "Remover Arq.", "FileSpreadsheet": "Excel", "FileKey": "Chave Arq.", "FileLock": "Arq. Travado", "Globe": "Globo", "Laptop": "Laptop", "Monitor": "Monitor",
-  "Grab": "Mão", "Book": "Livro", "GraduationCap": "Chapéu", "Lightbulb": "Lâmpada", "Heart": "Coração", "Smile": "Sorriso", "Coffee": "Café", "PackageSearch": "Buscar Pacote", "Container": "Contêiner", "Boxes": "Caixas", "Anchor": "Âncora",
+  "Grab": "Mão", "Book": "Livro", "GraduationCap": "Chapéu", "Lightbulb": "Lâmpada", "Heart": "Coração", "Smile": "Sorriso", "Coffee": "Café", "PackageSearch": "Buscar Pacote", "Container": "Contêiner", "Boxes": "Caixas",
   "Circle": "Círculo", "Database": "Banco Dados", "Layers": "Camadas", "HardDrive": "Disco Rígido", "PackageOpen": "Pacote Aberto", "Workflow": "Fluxo Trabalho", "Scan": "Scanner", "ScanBarcode": "Código Barras", "Ungroup": "Desagrupar", "BoxSelect": "Selecionar Caixa"
 };
 

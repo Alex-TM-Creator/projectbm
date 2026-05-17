@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Trash2, Loader2, Pencil, Calendar as CalendarIcon, CheckCircle, FileText } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Trash2, Loader2, Pencil, Calendar as CalendarIcon, CheckCircle, FileText, X } from "lucide-react";
 import {
   collection,
   getDocs,

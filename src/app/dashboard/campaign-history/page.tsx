@@ -582,7 +582,7 @@ export default function CampaignHistoryPage() {
                             onSelect={(date) => setEditingCampaign({...editingCampaign, endDate: date?.toISOString()})}
                             initialFocus
                             locale={ptBR}
-                            disabled={{ before: editingCampaign.startDate ? parseISO(editingCampaign.startDate) : undefined }}
+                            disabled={editingCampaign.startDate ? { before: parseISO(editingCampaign.startDate) } : undefined}
                         />
                         </PopoverContent>
                     </Popover>

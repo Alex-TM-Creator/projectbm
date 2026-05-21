@@ -85,6 +85,14 @@ export default function DeliveryTeamPaymentPage() {
   const [companyCommission, setCompanyCommission] = React.useState<number>(10);
   const [teamPaymentResults, setTeamPaymentResults] = React.useState<TeamMemberPayment[]>([]);
   const [totalStairServiceValue, setTotalStairServiceValue] = React.useState(0);
+  const [teamsProduction, setTeamsProduction] = React.useState<{
+    key: string;
+    driverName: string;
+    assistantNames: string[];
+    ordersCount: number;
+    totalValue: number;
+    netValue: number;
+  }[]>([]);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -139,52 +147,113 @@ export default function DeliveryTeamPaymentPage() {
     }
 
     let totalValue = 0;
-    const participations = new Map<string, { name: string; count: number; type: 'Motorista' | 'Ajudante' }>();
+    const teamMap = new Map<string, {
+      key: string;
+      driverName: string;
+      assistantNames: string[];
+      ordersCount: number;
+      totalValue: number;
+      netValue: number;
+      driverId: string;
+      assistantIds: string[];
+    }>();
 
     filteredOrders.forEach(order => {
       const hasStairService = order.services?.some(s => s.serviceId === stairService.id);
       if (hasStairService) {
         const servicePrice = order.services.find(s => s.serviceId === stairService.id)?.price || 0;
         totalValue += servicePrice;
+
+        const driverId = order.driverId || 'no-driver';
+        const assistantIds = order.assistantIds || [];
         
-        if (order.driverId) {
-            const driver = drivers.find(d => d.id === order.driverId);
-            if (driver) {
-                const current = participations.get(driver.id) || { name: driver.name, count: 0, type: 'Motorista' };
-                current.count += 1;
-                participations.set(driver.id, current);
-            }
-        }
-        order.assistantIds?.forEach(assistantId => {
-            const assistant = assistants.find(a => a.id === assistantId);
-            if (assistant) {
-                const current = participations.get(assistant.id) || { name: assistant.name, count: 0, type: 'Ajudante' };
-                current.count += 1;
-                participations.set(assistant.id, current);
-            }
+        // Generate unique team key based on driver and sorted assistant IDs
+        const teamKey = [driverId, ...[...assistantIds].sort()].join('_');
+
+        const driver = drivers.find(d => d.id === driverId);
+        const driverName = driver ? driver.name : (driverId === 'no-driver' ? 'Sem Motorista' : 'Motorista Desconhecido');
+
+        const astNames = assistantIds.map(aid => {
+          const ast = assistants.find(a => a.id === aid);
+          return ast ? ast.name : 'Ajudante Desconhecido';
         });
+
+        const current = teamMap.get(teamKey) || {
+          key: teamKey,
+          driverName,
+          assistantNames: astNames,
+          ordersCount: 0,
+          totalValue: 0,
+          netValue: 0,
+          driverId,
+          assistantIds
+        };
+
+        current.ordersCount += 1;
+        current.totalValue += servicePrice;
+        teamMap.set(teamKey, current);
       }
     });
 
     setTotalStairServiceValue(totalValue);
-    
-    const amountToDistribute = totalValue * (1 - companyCommission / 100);
-    const totalParticipations = Array.from(participations.values()).reduce((sum, p) => sum + p.count, 0);
 
-    if (totalParticipations === 0) {
-      setTeamPaymentResults([]);
-       setIsCalculating(false);
-      return;
-    }
+    // Apply company commission to get net value for each team
+    const teamsProductionList = Array.from(teamMap.values()).map(team => {
+      const netValue = team.totalValue * (1 - companyCommission / 100);
+      return {
+        ...team,
+        netValue
+      };
+    });
 
-    const valuePerParticipation = amountToDistribute / totalParticipations;
+    setTeamsProduction(teamsProductionList);
 
-    const results: TeamMemberPayment[] = Array.from(participations.entries()).map(([id, data]) => ({
+    // Now divide the net value of each team among the active members of that team
+    const memberPaymentsMap = new Map<string, {
+      name: string;
+      type: 'Motorista' | 'Ajudante';
+      participations: number;
+      amountToReceive: number;
+    }>();
+
+    teamsProductionList.forEach(team => {
+      const teamSize = (team.driverId !== 'no-driver' ? 1 : 0) + team.assistantIds.length;
+      if (teamSize === 0) return;
+
+      const share = team.netValue / teamSize;
+
+      if (team.driverId !== 'no-driver') {
+        const current = memberPaymentsMap.get(team.driverId) || {
+          name: team.driverName,
+          type: 'Motorista',
+          participations: 0,
+          amountToReceive: 0
+        };
+        current.participations += team.ordersCount;
+        current.amountToReceive += share;
+        memberPaymentsMap.set(team.driverId, current);
+      }
+
+      team.assistantIds.forEach((aid, idx) => {
+        const assistantName = team.assistantNames[idx];
+        const current = memberPaymentsMap.get(aid) || {
+          name: assistantName,
+          type: 'Ajudante',
+          participations: 0,
+          amountToReceive: 0
+        };
+        current.participations += team.ordersCount;
+        current.amountToReceive += share;
+        memberPaymentsMap.set(aid, current);
+      });
+    });
+
+    const results: TeamMemberPayment[] = Array.from(memberPaymentsMap.entries()).map(([id, data]) => ({
       id,
       name: data.name,
       type: data.type,
-      participations: data.count,
-      amountToReceive: data.count * valuePerParticipation,
+      participations: data.participations,
+      amountToReceive: data.amountToReceive,
     })).sort((a,b) => b.amountToReceive - a.amountToReceive);
 
     setTeamPaymentResults(results);
@@ -209,6 +278,14 @@ export default function DeliveryTeamPaymentPage() {
             totalServiceValue: totalStairServiceValue,
             totalDistributed: totalAmount,
             results: teamPaymentResults,
+            teamsProduction: teamsProduction.map(tp => ({
+              key: tp.key,
+              driverName: tp.driverName,
+              assistantNames: tp.assistantNames,
+              ordersCount: tp.ordersCount,
+              totalValue: tp.totalValue,
+              netValue: tp.netValue,
+            })),
             createdAt: serverTimestamp(),
             status: 'pending',
             paidAt: null,
@@ -258,7 +335,7 @@ export default function DeliveryTeamPaymentPage() {
                 </Popover>
             </div>
             <div className="space-y-2">
-                <Label htmlFor="commission">Comissão da Empresa (%)</Label>
+                <Label htmlFor="commission">Retenção da Empresa (%)</Label>
                 <div className="relative">
                     <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
                     <Input id="commission" type="number" value={companyCommission} onChange={e => setCompanyCommission(Number(e.target.value))} className="pl-9"/>
@@ -281,7 +358,7 @@ export default function DeliveryTeamPaymentPage() {
                     <CardContent><p className="text-2xl font-bold">{formatCurrency(totalStairServiceValue)}</p></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Comissão da Empresa</CardTitle></CardHeader>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Retenção da Empresa</CardTitle></CardHeader>
                     <CardContent><p className="text-2xl font-bold">{formatCurrency(totalStairServiceValue * (companyCommission/100))}</p></CardContent>
                 </Card>
                 <Card>
@@ -297,32 +374,78 @@ export default function DeliveryTeamPaymentPage() {
                     <p className="mt-2 text-sm text-muted-foreground">Não foram encontradas entregas com "subida de escada" no período.</p>
                 </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Membro da Equipe</TableHead>
-                    <TableHead>Função</TableHead>
-                    <TableHead className="text-center">Nº de Participações</TableHead>
-                    <TableHead className="text-right">Valor a Receber</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {teamPaymentResults.map((result) => (
-                    <TableRow key={result.id}>
-                      <TableCell className="font-medium">{result.name}</TableCell>
-                      <TableCell><Badge variant="outline">{result.type}</Badge></TableCell>
-                      <TableCell className="text-center">{result.participations}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatCurrency(result.amountToReceive)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-                 <TableFooter>
-                    <TableRow className="text-lg font-bold">
-                        <TableCell colSpan={3} className="text-right">Total Distribuído</TableCell>
-                        <TableCell className="text-right">{formatCurrency(teamPaymentResults.reduce((sum, r) => sum + r.amountToReceive, 0))}</TableCell>
-                    </TableRow>
-                 </TableFooter>
-              </Table>
+              <div className="space-y-8">
+                {/* Resultado por Equipe */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Produção por Equipe
+                  </h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Equipe (Motorista + Ajudantes)</TableHead>
+                          <TableHead className="text-center">Nº de Entregas</TableHead>
+                          <TableHead className="text-right">Valor Bruto</TableHead>
+                          <TableHead className="text-right">Valor Líquido</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {teamsProduction.map((team) => (
+                          <TableRow key={team.key}>
+                            <TableCell className="font-medium">
+                              <span className="font-bold text-foreground">{team.driverName}</span>
+                              {team.assistantNames.length > 0 && (
+                                <span className="text-muted-foreground"> + {team.assistantNames.join(" + ")}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">{team.ordersCount}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(team.totalValue)}</TableCell>
+                            <TableCell className="text-right font-semibold text-emerald-600">{formatCurrency(team.netValue)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Pagamentos Individuais */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Pagamentos Individuais
+                  </h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Membro da Equipe</TableHead>
+                          <TableHead>Função</TableHead>
+                          <TableHead className="text-center">Nº de Participações</TableHead>
+                          <TableHead className="text-right">Valor a Receber</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {teamPaymentResults.map((result) => (
+                          <TableRow key={result.id}>
+                            <TableCell className="font-medium">{result.name}</TableCell>
+                            <TableCell><Badge variant="outline">{result.type}</Badge></TableCell>
+                            <TableCell className="text-center">{result.participations}</TableCell>
+                            <TableCell className="text-right font-semibold text-primary">{formatCurrency(result.amountToReceive)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                       <TableFooter>
+                          <TableRow className="text-lg font-bold">
+                              <TableCell colSpan={3} className="text-right">Total Distribuído</TableCell>
+                              <TableCell className="text-right text-emerald-600">{formatCurrency(teamPaymentResults.reduce((sum, r) => sum + r.amountToReceive, 0))}</TableCell>
+                          </TableRow>
+                       </TableFooter>
+                    </Table>
+                  </div>
+                </div>
+              </div>
             )}
             </>
           )}

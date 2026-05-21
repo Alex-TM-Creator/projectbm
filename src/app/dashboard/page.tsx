@@ -10,7 +10,7 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Target, TrendingUp, Award, Loader2, Frown, Rocket, GitFork, BriefcaseBusiness } from "lucide-react"
+import { Users, Target, TrendingUp, Award, Loader2, Frown, Rocket, GitFork, BriefcaseBusiness, Medal, Trophy, Gem } from "lucide-react"
 import {
   Bar,
   BarChart,
@@ -29,6 +29,14 @@ import { seedNavigation } from '@/lib/navigation-data';
 import { getGroupStatus } from "@/lib/period-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { parseISO } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type DashboardStats = {
   activeGoals: number;
@@ -61,12 +69,20 @@ type HighlightedGoal = {
 export default function DashboardPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [stats, setStats] = React.useState<DashboardStats | null>(null);
-  const [chartData, setChartData] = React.useState<ChartData[]>([]);
-  const [branchChartData, setBranchChartData] = React.useState<ChartData[]>([]);
-  const [roleChartData, setRoleChartData] = React.useState<ChartData[]>([]);
-  const [topSellers, setTopSellers] = React.useState<TopSeller[]>([]);
-  const [highlightedGoals, setHighlightedGoals] = React.useState<HighlightedGoal[]>([]);
+  
+  // Raw Data States
+  const [goals, setGoals] = React.useState<Goal[]>([]);
+  const [goalTypes, setGoalTypes] = React.useState<GoalType[]>([]);
+  const [users, setUsers] = React.useState<User[]>([]);
+  const [roles, setRoles] = React.useState<Role[]>([]);
+  const [periodGroups, setPeriodGroups] = React.useState<PeriodGroup[]>([]);
+  const [branches, setBranches] = React.useState<Branch[]>([]);
+
+  // Period Selection per Tab
+  const [activeTab, setActiveTab] = React.useState<string>("filiais");
+  const [selectedBranchGroupId, setSelectedBranchGroupId] = React.useState<string>("");
+  const [selectedSellerGroupId, setSelectedSellerGroupId] = React.useState<string>("");
+  const [selectedRoleGroupId, setSelectedRoleGroupId] = React.useState<string>("");
 
   React.useEffect(() => {
     seedNavigation();
@@ -90,192 +106,39 @@ export default function DashboardPage() {
           getDocs(collection(db, "branches")),
         ]);
         
-        const goals = goalsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
-        const goalTypes = goalTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as GoalType));
-        const users = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const roles = rolesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Role));
-        const periodGroups = periodGroupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PeriodGroup));
-        const branches = branchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+        const fetchedGoals = goalsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+        const fetchedGoalTypes = goalTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as GoalType));
+        const fetchedUsers = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        const fetchedRoles = rolesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Role));
+        const fetchedBranches = branchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
         
-        // --- Process Data for Dashboard ---
-        const activeGroup = periodGroups.find(g => getGroupStatus(g).text === "Ativo");
-        const activePeriodIds = activeGroup ? activeGroup.periods.map(p => p.id) : [];
-
-        const activeGoals = goals.filter(g => activePeriodIds.includes(g.periodId));
-        
-        const isMercantilType = (gt: GoalType) => gt.name.toLowerCase().includes('mercantil');
-
-        // 1. Dashboard Stats
-        const mercantilGoalsForSellers = activeGoals.filter(g => {
-            const goalType = goalTypes.find(gt => gt.id === g.goalTypeId);
-            return goalType && isMercantilType(goalType) && g.userId;
+        const statusOrder = { "Ativo": 1, "Agendado": 2, "Encerrado": 3, "Vazio": 4 };
+        const fetchedGroups = periodGroupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PeriodGroup));
+        fetchedGroups.sort((a, b) => {
+          const statusA = statusOrder[getGroupStatus(a).text as keyof typeof statusOrder] || 99;
+          const statusB = statusOrder[getGroupStatus(b).text as keyof typeof statusOrder] || 99;
+          if (statusA !== statusB) return statusA - statusB;
+          const dateA = a.periods?.[0]?.startDate ? parseISO(a.periods[0].startDate).getTime() : 0;
+          const dateB = b.periods?.[0]?.startDate ? parseISO(b.periods[0].startDate).getTime() : 0;
+          return dateB - dateA;
         });
 
-        const totalTarget = mercantilGoalsForSellers.reduce((sum, goal) => {
-            let target = goal.targetValue || 0;
-            if (goal.hasLevels && goal.levelTargets) {
-                target = goal.levelTargets.Diamante || 0;
-            }
-            return sum + target;
-        }, 0);
-        
-        const totalAchieved = mercantilGoalsForSellers.reduce((sum, goal) => sum + (goal.realizado || 0), 0);
+        setGoals(fetchedGoals);
+        setGoalTypes(fetchedGoalTypes);
+        setUsers(fetchedUsers);
+        setRoles(fetchedRoles);
+        setPeriodGroups(fetchedGroups);
+        setBranches(fetchedBranches);
 
-        const overallAchievement = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
-        
-        setStats({
-          activeGoals: activeGoals.length,
-          totalTarget,
-          totalAchieved,
-          overallAchievement
-        });
+        const defaultGroup = fetchedGroups.find(g => getGroupStatus(g).text === "Ativo")
+          || fetchedGroups.find(g => getGroupStatus(g).text === "Agendado")
+          || fetchedGroups[0];
 
-        // 2. Chart Data for Sellers
-        const dataForChart = goalTypes.map(goalType => {
-            const goalsForType = activeGoals.filter(g => g.goalTypeId === goalType.id && !!g.userId);
-            
-            const totals = goalsForType.reduce((acc, goal) => {
-                let target = goal.targetValue || 0;
-                if (goal.hasLevels && goal.levelTargets) {
-                    target = goal.levelTargets.Diamante || 0;
-                }
-                acc.meta += target;
-                acc.realizado += goal.realizado || 0;
-                return acc;
-            }, { meta: 0, realizado: 0 });
-
-            return {
-                name: goalType.name,
-                meta: totals.meta,
-                realizado: totals.realizado,
-            };
-        }).filter(item => item.meta > 0 || item.realizado > 0);
-        
-        setChartData(dataForChart);
-        
-        // 2.5 Chart Data for Branches
-        const dataForBranchChart = goalTypes.map(goalType => {
-            const goalsForType = activeGoals.filter(g => g.goalTypeId === goalType.id && !!g.branchId);
-
-            const totals = goalsForType.reduce((acc, goal) => {
-                let target = goal.targetValue || 0;
-                if (goal.hasLevels && goal.levelTargets) {
-                    target = goal.levelTargets.Diamante || 0;
-                }
-                acc.meta += target;
-                acc.realizado += goal.realizado || 0;
-                return acc;
-            }, { meta: 0, realizado: 0 });
-
-            return {
-                name: goalType.name,
-                meta: totals.meta,
-                realizado: totals.realizado,
-            };
-        }).filter(item => item.meta > 0 || item.realizado > 0);
-        
-        setBranchChartData(dataForBranchChart);
-
-        // 2.6 Chart Data for Roles
-        const dataForRoleChart = goalTypes.map(goalType => {
-            const goalsForType = activeGoals.filter(g => g.goalTypeId === goalType.id && g.roleId && !g.userId && !g.branchId);
-
-            const totals = goalsForType.reduce((acc, goal) => {
-                let target = goal.targetValue || 0;
-                if (goal.hasLevels && goal.levelTargets) {
-                    target = goal.levelTargets.Diamante || 0;
-                }
-                acc.meta += target;
-                acc.realizado += goal.realizado || 0;
-                return acc;
-            }, { meta: 0, realizado: 0 });
-
-            return {
-                name: goalType.name,
-                meta: totals.meta,
-                realizado: totals.realizado,
-            };
-        }).filter(item => item.meta > 0 || item.realizado > 0);
-        
-        setRoleChartData(dataForRoleChart);
-
-
-        // 3. Top Sellers
-        const sellerPerformance: { [sellerId: string]: { totalRealizado: number; totalMeta: number } } = {};
-        
-        const allSellers = users.filter(u => u.roleId);
-
-        allSellers.forEach(seller => {
-            const sellerGoals = activeGoals.filter(g => 
-                (g.userId === seller.id || (g.roleId === seller.roleId && !g.userId && !g.branchId))
-            );
-
-            if (sellerGoals.length === 0) return;
-
-            const totals = sellerGoals.reduce((acc, goal) => {
-                const goalType = goalTypes.find(gt => gt.id === goal.goalTypeId);
-                if (!goalType || !isMercantilType(goalType)) return acc;
-
-                const realizado = goal.realizado || 0;
-                let target = goal.targetValue || 0;
-
-                if (goal.hasLevels && goal.levelTargets) {
-                    target = goal.levelTargets.Diamante || 0;
-                }
-                
-                acc.realizado += realizado;
-                acc.meta += target;
-                return acc;
-            }, { realizado: 0, meta: 0 });
-            
-            if (totals.meta > 0 || totals.realizado > 0) {
-                if (!sellerPerformance[seller.id]) {
-                    sellerPerformance[seller.id] = { totalRealizado: 0, totalMeta: 0 };
-                }
-                sellerPerformance[seller.id].totalRealizado += totals.realizado;
-                sellerPerformance[seller.id].totalMeta += totals.meta;
-            }
-        });
-        
-        const topSellersList = Object.entries(sellerPerformance)
-            .map(([sellerId, { totalRealizado, totalMeta }]) => {
-                const seller = users.find(u => u.id === sellerId);
-                const roleName = roles.find(r => r.id === seller?.roleId)?.name || "N/A";
-                const achievement = totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0;
-                return {
-                    seller: seller!,
-                    totalRealizado,
-                    totalMeta,
-                    achievement,
-                    roleName,
-                }
-            })
-            .filter(item => item.seller)
-            .sort((a, b) => b.achievement - a.achievement)
-            .slice(0, 5);
-        setTopSellers(topSellersList);
-        
-        // 4. Highlighted Goals (near completion)
-        const highlighted = activeGoals
-            .map(goal => {
-                const goalType = goalTypes.find(gt => gt.id === goal.goalTypeId);
-                const seller = users.find(u => u.id === goal.userId);
-                if (!goalType || !seller || !goal.hasLevels || !goal.levelTargets) return null;
-
-                const target = goal.levelTargets.Diamante || 0;
-                
-                if (target === 0) return null;
-                
-                const achievement = ((goal.realizado || 0) / target) * 100;
-                
-                return { goal, goalType, seller, achievement };
-            })
-            .filter(item => item && item.achievement >= 75 && item.achievement < 100) // Between 75% and 99.9%
-            .sort((a, b) => b!.achievement - a!.achievement)
-            .slice(0, 5) as HighlightedGoal[];
-        
-        setHighlightedGoals(highlighted);
-
+        if (defaultGroup) {
+          setSelectedBranchGroupId(defaultGroup.id);
+          setSelectedSellerGroupId(defaultGroup.id);
+          setSelectedRoleGroupId(defaultGroup.id);
+        }
 
       } catch (error) {
         toast({
@@ -289,6 +152,324 @@ export default function DashboardPage() {
     };
     fetchData();
   }, [toast]);
+
+  // Active Group Id dynamically based on the selected period of the active tab
+  const activeGroupId = React.useMemo(() => {
+    if (activeTab === "filiais") return selectedBranchGroupId;
+    if (activeTab === "vendedores") return selectedSellerGroupId;
+    return selectedRoleGroupId;
+  }, [activeTab, selectedBranchGroupId, selectedSellerGroupId, selectedRoleGroupId]);
+
+  // Selected Period Group Name for UI text representation
+  const selectedGroupName = React.useMemo(() => {
+    const group = periodGroups.find(g => g.id === activeGroupId);
+    return group ? group.name : "período selecionado";
+  }, [periodGroups, activeGroupId]);
+
+  // Selected dimension label for UI text representation
+  const dimensionLabel = React.useMemo(() => {
+    if (activeTab === "filiais") return "filiais";
+    if (activeTab === "vendedores") return "vendedores";
+    return "funções";
+  }, [activeTab]);
+
+  // Selected Branch Period Group Name for UI text representation
+  const selectedBranchGroupName = React.useMemo(() => {
+    const group = periodGroups.find(g => g.id === selectedBranchGroupId);
+    return group ? group.name : "período selecionado";
+  }, [periodGroups, selectedBranchGroupId]);
+
+  // Branch Performance Data with levels
+  const branchPerformanceData = React.useMemo(() => {
+    if (!selectedBranchGroupId) return [];
+    const group = periodGroups.find(g => g.id === selectedBranchGroupId);
+    const periodIds = group ? group.periods.map(p => p.id) : [];
+    const filteredGoals = goals.filter(g => periodIds.includes(g.periodId) && g.branchId);
+
+    const isMercantilType = (gt: GoalType) => gt.name.toLowerCase().includes('mercantil');
+
+    return branches.map(branch => {
+      const branchGoals = filteredGoals.filter(g => g.branchId === branch.id);
+      
+      const mercantilGoals = branchGoals.filter(g => {
+        const gt = goalTypes.find(type => type.id === g.goalTypeId);
+        return gt && isMercantilType(gt);
+      });
+
+      const processedGoals = mercantilGoals.map(goal => {
+        const goalType = goalTypes.find(gt => gt.id === goal.goalTypeId)!;
+        const realizado = goal.realizado || 0;
+        
+        let targetValue = goal.targetValue || 0;
+        if (goal.hasLevels && goal.levelTargets) {
+          targetValue = goal.levelTargets.Diamante || 0;
+        }
+
+        const achievement = targetValue > 0 ? (realizado / targetValue) * 100 : (realizado > 0 ? 100 : 0);
+
+        // Level achievements
+        const levelAchievements: { Bronze?: number; Prata?: number; Ouro?: number; Diamante?: number } = {};
+        if (goal.hasLevels && goal.levelTargets) {
+          const levels: Array<'Bronze' | 'Prata' | 'Ouro' | 'Diamante'> = ['Bronze', 'Prata', 'Ouro', 'Diamante'];
+          levels.forEach(lvl => {
+            const tgt = goal.levelTargets?.[lvl];
+            if (tgt && tgt > 0) {
+              levelAchievements[lvl] = (realizado / tgt) * 100;
+            }
+          });
+        }
+
+        // Determine current achieved level and next level
+        let achievedLevel: 'Bronze' | 'Prata' | 'Ouro' | 'Diamante' | null = null;
+        let nextLevel: { name: 'Bronze' | 'Prata' | 'Ouro' | 'Diamante'; value: number } | null = null;
+        
+        if (goal.hasLevels && goal.levelTargets) {
+          const levels: Array<'Bronze' | 'Prata' | 'Ouro' | 'Diamante'> = ['Bronze', 'Prata', 'Ouro', 'Diamante'];
+          for (let i = 0; i < levels.length; i++) {
+            const lvl = levels[i];
+            const tgt = goal.levelTargets[lvl];
+            if (tgt && realizado >= tgt) {
+              achievedLevel = lvl;
+            } else if (tgt && realizado < tgt) {
+              nextLevel = { name: lvl, value: tgt };
+              break;
+            }
+          }
+        }
+
+        return {
+          goal,
+          goalType,
+          realizado,
+          targetValue,
+          achievement,
+          levelAchievements,
+          achievedLevel,
+          nextLevel,
+        };
+      });
+
+      const overallAchievement = processedGoals.length > 0
+        ? processedGoals.reduce((sum, g) => sum + g.achievement, 0) / processedGoals.length
+        : 0;
+
+      return {
+        branch,
+        goals: processedGoals,
+        overallAchievement,
+      };
+    }).filter(item => item.goals.length > 0)
+      .sort((a, b) => b.overallAchievement - a.overallAchievement);
+  }, [branches, goals, goalTypes, periodGroups, selectedBranchGroupId]);
+
+  // Calculations for KPIs based on current filtered goals and selected dimension (activeTab)
+  const stats = React.useMemo(() => {
+    if (!activeGroupId) return null;
+    const activeGroup = periodGroups.find(g => g.id === activeGroupId);
+    const activePeriodIds = activeGroup ? activeGroup.periods.map(p => p.id) : [];
+    const activeGoals = goals.filter(g => activePeriodIds.includes(g.periodId));
+
+    const dimensionGoals = activeGoals.filter(g => {
+      if (activeTab === "filiais") {
+        return !!g.branchId;
+      } else if (activeTab === "vendedores") {
+        return !!g.userId;
+      } else {
+        return !!g.roleId && !g.userId && !g.branchId;
+      }
+    });
+
+    const mercantilGoals = dimensionGoals.filter(g => {
+      const goalType = goalTypes.find(gt => gt.id === g.goalTypeId);
+      return goalType && goalType.name.toLowerCase().includes('mercantil');
+    });
+
+    const totalTarget = mercantilGoals.reduce((sum, goal) => {
+      let target = goal.targetValue || 0;
+      if (goal.hasLevels && goal.levelTargets) {
+        target = goal.levelTargets.Diamante || 0;
+      }
+      return sum + target;
+    }, 0);
+    
+    const totalAchieved = mercantilGoals.reduce((sum, goal) => sum + (goal.realizado || 0), 0);
+    const overallAchievement = totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
+
+    return {
+      activeGoals: dimensionGoals.length,
+      totalTarget,
+      totalAchieved,
+      overallAchievement
+    };
+  }, [goals, goalTypes, periodGroups, activeGroupId, activeTab]);
+
+  // Chart Data for Sellers
+  const chartData = React.useMemo(() => {
+    if (!selectedSellerGroupId) return [];
+    const group = periodGroups.find(g => g.id === selectedSellerGroupId);
+    const periodIds = group ? group.periods.map(p => p.id) : [];
+    const filteredGoals = goals.filter(g => periodIds.includes(g.periodId));
+
+    return goalTypes.map(goalType => {
+      const goalsForType = filteredGoals.filter(g => g.goalTypeId === goalType.id && !!g.userId);
+
+      const totals = goalsForType.reduce((acc, goal) => {
+        let target = goal.targetValue || 0;
+        if (goal.hasLevels && goal.levelTargets) {
+          target = goal.levelTargets.Diamante || 0;
+        }
+        acc.meta += target;
+        acc.realizado += goal.realizado || 0;
+        return acc;
+      }, { meta: 0, realizado: 0 });
+
+      return {
+        name: goalType.name,
+        meta: totals.meta,
+        realizado: totals.realizado,
+      };
+    }).filter(item => item.meta > 0 || item.realizado > 0);
+  }, [goals, goalTypes, periodGroups, selectedSellerGroupId]);
+
+  // Chart Data for Branches
+  const branchChartData = React.useMemo(() => {
+    if (!selectedBranchGroupId) return [];
+    const group = periodGroups.find(g => g.id === selectedBranchGroupId);
+    const periodIds = group ? group.periods.map(p => p.id) : [];
+    const filteredGoals = goals.filter(g => periodIds.includes(g.periodId));
+
+    return goalTypes.map(goalType => {
+      const goalsForType = filteredGoals.filter(g => g.goalTypeId === goalType.id && !!g.branchId);
+
+      const totals = goalsForType.reduce((acc, goal) => {
+        let target = goal.targetValue || 0;
+        if (goal.hasLevels && goal.levelTargets) {
+          target = goal.levelTargets.Diamante || 0;
+        }
+        acc.meta += target;
+        acc.realizado += goal.realizado || 0;
+        return acc;
+      }, { meta: 0, realizado: 0 });
+
+      return {
+        name: goalType.name,
+        meta: totals.meta,
+        realizado: totals.realizado,
+      };
+    }).filter(item => item.meta > 0 || item.realizado > 0);
+  }, [goals, goalTypes, periodGroups, selectedBranchGroupId]);
+
+  // Chart Data for Roles
+  const roleChartData = React.useMemo(() => {
+    if (!selectedRoleGroupId) return [];
+    const group = periodGroups.find(g => g.id === selectedRoleGroupId);
+    const periodIds = group ? group.periods.map(p => p.id) : [];
+    const filteredGoals = goals.filter(g => periodIds.includes(g.periodId));
+
+    return goalTypes.map(goalType => {
+      const goalsForType = filteredGoals.filter(g => g.goalTypeId === goalType.id && g.roleId && !g.userId && !g.branchId);
+
+      const totals = goalsForType.reduce((acc, goal) => {
+        let target = goal.targetValue || 0;
+        if (goal.hasLevels && goal.levelTargets) {
+          target = goal.levelTargets.Diamante || 0;
+        }
+        acc.meta += target;
+        acc.realizado += goal.realizado || 0;
+        return acc;
+      }, { meta: 0, realizado: 0 });
+
+      return {
+        name: goalType.name,
+        meta: totals.meta,
+        realizado: totals.realizado,
+      };
+    }).filter(item => item.meta > 0 || item.realizado > 0);
+  }, [goals, goalTypes, periodGroups, selectedRoleGroupId]);
+
+  // Top Sellers
+  const topSellers = React.useMemo(() => {
+    if (!activeGroupId) return [];
+    const activeGroup = periodGroups.find(g => g.id === activeGroupId);
+    const activePeriodIds = activeGroup ? activeGroup.periods.map(p => p.id) : [];
+    const activeGoals = goals.filter(g => activePeriodIds.includes(g.periodId));
+
+    const sellerPerformance: { [sellerId: string]: { totalRealizado: number; totalMeta: number } } = {};
+    const allSellers = users.filter(u => u.roleId);
+
+    allSellers.forEach(seller => {
+      const sellerGoals = activeGoals.filter(g => 
+        (g.userId === seller.id || (g.roleId === seller.roleId && !g.userId && !g.branchId))
+      );
+
+      if (sellerGoals.length === 0) return;
+
+      const totals = sellerGoals.reduce((acc, goal) => {
+        const goalType = goalTypes.find(gt => gt.id === goal.goalTypeId);
+        if (!goalType || !goalType.name.toLowerCase().includes('mercantil')) return acc;
+
+        const realizado = goal.realizado || 0;
+        let target = goal.targetValue || 0;
+
+        if (goal.hasLevels && goal.levelTargets) {
+          target = goal.levelTargets.Diamante || 0;
+        }
+        
+        acc.realizado += realizado;
+        acc.meta += target;
+        return acc;
+      }, { realizado: 0, meta: 0 });
+      
+      if (totals.meta > 0 || totals.realizado > 0) {
+        if (!sellerPerformance[seller.id]) {
+          sellerPerformance[seller.id] = { totalRealizado: 0, totalMeta: 0 };
+        }
+        sellerPerformance[seller.id].totalRealizado += totals.realizado;
+        sellerPerformance[seller.id].totalMeta += totals.meta;
+      }
+    });
+
+    return Object.entries(sellerPerformance)
+      .map(([sellerId, { totalRealizado, totalMeta }]) => {
+        const seller = users.find(u => u.id === sellerId);
+        const roleName = roles.find(r => r.id === seller?.roleId)?.name || "N/A";
+        const achievement = totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0;
+        return {
+          seller: seller!,
+          totalRealizado,
+          totalMeta,
+          achievement,
+          roleName,
+        };
+      })
+      .filter(item => item.seller)
+      .sort((a, b) => b.achievement - a.achievement)
+      .slice(0, 5);
+  }, [goals, goalTypes, users, roles, periodGroups, activeGroupId]);
+
+  // Highlighted Goals (near completion)
+  const highlightedGoals = React.useMemo(() => {
+    if (!activeGroupId) return [];
+    const activeGroup = periodGroups.find(g => g.id === activeGroupId);
+    const activePeriodIds = activeGroup ? activeGroup.periods.map(p => p.id) : [];
+    const activeGoals = goals.filter(g => activePeriodIds.includes(g.periodId));
+
+    return activeGoals
+      .map(goal => {
+        const goalType = goalTypes.find(gt => gt.id === goal.goalTypeId);
+        const seller = users.find(u => u.id === goal.userId);
+        if (!goalType || !seller || !goal.hasLevels || !goal.levelTargets) return null;
+
+        const target = goal.levelTargets.Diamante || 0;
+        if (target === 0) return null;
+        
+        const achievement = ((goal.realizado || 0) / target) * 100;
+        return { goal, goalType, seller, achievement };
+      })
+      .filter(item => item && item.achievement >= 75 && item.achievement < 100)
+      .sort((a, b) => b!.achievement - a!.achievement)
+      .slice(0, 5) as HighlightedGoal[];
+  }, [goals, goalTypes, users, periodGroups, activeGroupId]);
 
 
   if (loading) {
@@ -313,14 +494,14 @@ export default function DashboardPage() {
         {/* Card 1 */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-transform hover:-translate-y-1 hover:shadow-xl duration-300">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-indigo-100">Metas Ativas</p>
+            <p className="text-sm font-medium text-indigo-100">Metas</p>
             <div className="rounded-full bg-white/20 p-2 backdrop-blur-md">
               <Target className="h-5 w-5 text-white" />
             </div>
           </div>
           <div className="mt-4 relative z-10">
             <h3 className="text-4xl font-bold tracking-tight">{stats?.activeGoals || 0}</h3>
-            <p className="mt-1 text-sm text-indigo-100/80">Metas em períodos ativos</p>
+            <p className="mt-1 text-sm text-indigo-100/80">Total de metas de {dimensionLabel} em {selectedGroupName}</p>
           </div>
           <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
           <div className="absolute -left-6 -bottom-6 h-24 w-24 rounded-full bg-purple-500/20 blur-xl"></div>
@@ -336,7 +517,7 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 relative z-10">
             <h3 className="text-3xl font-bold tracking-tight">{formatCurrency(stats?.totalAchieved || 0)}</h3>
-            <p className="mt-1 text-sm text-emerald-100/80">Soma de valores realizados</p>
+            <p className="mt-1 text-sm text-emerald-100/80">Soma de realizados de {dimensionLabel} em {selectedGroupName}</p>
           </div>
           <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
         </div>
@@ -351,7 +532,7 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 relative z-10">
             <h3 className="text-3xl font-bold tracking-tight">{formatCurrency(stats?.totalTarget || 0)}</h3>
-            <p className="mt-1 text-sm text-rose-100/80">Alvo total dos vendedores</p>
+            <p className="mt-1 text-sm text-rose-100/80">Alvo total de {dimensionLabel} ({selectedGroupName})</p>
           </div>
           <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
         </div>
@@ -366,23 +547,54 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 relative z-10">
             <h3 className="text-4xl font-bold tracking-tight">{stats?.overallAchievement.toFixed(2) || '0.00'}%</h3>
-            <p className="mt-1 text-sm text-blue-100/80">Progresso geral da operação</p>
+            <p className="mt-1 text-sm text-blue-100/80">Progresso geral de {dimensionLabel} em {selectedGroupName}</p>
           </div>
           <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
         </div>
       </div>
       <Card className="overflow-hidden border-none shadow-xl transition-all duration-300 hover:shadow-2xl">
-        <Tabs defaultValue="filiais" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <CardHeader className="border-b bg-muted/30 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="space-y-1">
               <CardTitle className="font-headline text-lg">Visão Geral de Desempenho</CardTitle>
-              <CardDescription>Meta vs. Realizado estratificado por dimensões da empresa nos períodos ativos.</CardDescription>
+              <CardDescription>Meta vs. Realizado estratificado por dimensões da empresa nos períodos selecionados.</CardDescription>
             </div>
-            <TabsList className="bg-background/80 shadow-sm border border-border/50">
-              <TabsTrigger value="filiais">Filiais</TabsTrigger>
-              <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
-              <TabsTrigger value="funcoes">Funções</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select
+                value={
+                  activeTab === "filiais"
+                    ? selectedBranchGroupId
+                    : activeTab === "vendedores"
+                    ? selectedSellerGroupId
+                    : selectedRoleGroupId
+                }
+                onValueChange={(val) => {
+                  if (activeTab === "filiais") setSelectedBranchGroupId(val);
+                  else if (activeTab === "vendedores") setSelectedSellerGroupId(val);
+                  else setSelectedRoleGroupId(val);
+                }}
+              >
+                <SelectTrigger className="w-[200px] h-10 bg-background/85 shadow-sm border-border/50 font-medium">
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent>
+                  {periodGroups.map((group) => {
+                    const status = getGroupStatus(group).text;
+                    return (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} {status ? `(${status})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              <TabsList className="bg-background/80 shadow-sm border border-border/50">
+                <TabsTrigger value="filiais">Filiais</TabsTrigger>
+                <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
+                <TabsTrigger value="funcoes">Funções</TabsTrigger>
+              </TabsList>
+            </div>
           </CardHeader>
           <CardContent className="pt-6 pl-2">
             <TabsContent value="filiais" className="mt-0">
@@ -516,6 +728,162 @@ export default function DashboardPage() {
           </CardContent>
         </Tabs>
       </Card>
+
+      {/* Resultado das Filiais Separadamente */}
+      <Card className="overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300">
+          <CardHeader className="pb-4 border-b border-border/50">
+              <CardTitle className="font-headline text-xl flex items-center gap-2">
+                  <GitFork className="h-5 w-5 text-primary" />
+                  Resultado das Filiais
+              </CardTitle>
+              <CardDescription>
+                  Acompanhamento das metas mercantil e atingimento por nível de cada filial em {selectedBranchGroupName}.
+              </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+              {branchPerformanceData.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {branchPerformanceData.map(({ branch, goals: branchGoals, overallAchievement }) => (
+                          <div key={branch.id} className="relative rounded-2xl border bg-background/50 p-5 space-y-4 shadow-sm hover:shadow-md hover:border-primary/30 transition-all overflow-hidden">
+                              {/* Top colored accent bar */}
+                              <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+                                  overallAchievement >= 100 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                                  overallAchievement >= 75  ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                                  overallAchievement >= 50  ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                                  'bg-gradient-to-r from-rose-400 to-rose-600'
+                              }`} />
+
+                              <div className="flex items-center justify-between">
+                                  <div>
+                                      <h4 className="font-bold text-lg text-foreground flex items-center gap-2">
+                                          {branch.name}
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">
+                                          {branchGoals.length} meta{branchGoals.length !== 1 ? 's' : ''} mercantil
+                                      </p>
+                                  </div>
+                                  <Badge variant="secondary" className={`font-bold text-xs px-2.5 py-1 rounded-full border ${
+                                      overallAchievement >= 100 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
+                                      overallAchievement >= 75  ? 'bg-blue-500/10 text-blue-600 border-blue-200' :
+                                      overallAchievement >= 50  ? 'bg-amber-500/10 text-amber-600 border-amber-200' :
+                                      'bg-rose-500/10 text-rose-600 border-rose-200'
+                                  }`}>
+                                      Média: {overallAchievement.toFixed(1)}%
+                                  </Badge>
+                              </div>
+
+                              <div className="space-y-4 divide-y divide-border/50">
+                                  {branchGoals.map(({ goal, goalType, realizado, targetValue, achievement, levelAchievements, achievedLevel, nextLevel }) => {
+                                      return (
+                                          <div key={goal.id} className="space-y-3 pt-3 first:pt-0 first:border-t-0">
+                                              <div className="flex items-center justify-between text-sm">
+                                                  <span className="font-bold text-primary">{goalType.name}</span>
+                                                  <span className="font-mono text-xs text-muted-foreground">
+                                                      Realizado: <span className="font-bold text-foreground">{formatCurrency(realizado)}</span>
+                                                  </span>
+                                              </div>
+
+                                              {goal.hasLevels && goal.levelTargets ? (
+                                                  <div className="space-y-2.5">
+                                                      {/* Levels grid */}
+                                                      <div className="grid grid-cols-4 gap-1.5">
+                                                          {(['Bronze', 'Prata', 'Ouro', 'Diamante'] as const).map(lvl => {
+                                                              const lvlTarget = goal.levelTargets?.[lvl] || 0;
+                                                              const isAchieved = realizado >= lvlTarget && lvlTarget > 0;
+
+                                                              return (
+                                                                  <div
+                                                                      key={lvl}
+                                                                      className={`flex flex-col items-center justify-center p-1.5 rounded-xl border text-center transition-all ${
+                                                                          isAchieved
+                                                                              ? lvl === 'Bronze' ? 'bg-orange-500/10 border-orange-200 text-orange-700 font-semibold' :
+                                                                                lvl === 'Prata' ? 'bg-slate-500/10 border-slate-200 text-slate-700 font-semibold' :
+                                                                                lvl === 'Ouro' ? 'bg-yellow-500/10 border-yellow-200 text-yellow-700 font-semibold' :
+                                                                                'bg-sky-500/10 border-sky-200 text-sky-700 font-semibold'
+                                                                              : 'bg-muted/10 border-border/50 text-muted-foreground/60 opacity-60'
+                                                                      }`}
+                                                                  >
+                                                                      <span className="text-[9px] uppercase font-bold tracking-wider flex items-center gap-0.5">
+                                                                          {lvl === 'Bronze' && <Medal className="h-3 w-3 text-orange-600" />}
+                                                                          {lvl === 'Prata' && <Trophy className="h-3 w-3 text-slate-500" />}
+                                                                          {lvl === 'Ouro' && <Award className="h-3 w-3 text-yellow-500" />}
+                                                                          {lvl === 'Diamante' && <Gem className="h-3 w-3 text-sky-400" />}
+                                                                          {lvl}
+                                                                      </span>
+                                                                      <span className="text-[9px] mt-0.5 font-mono">{formatCurrency(lvlTarget)}</span>
+                                                                  </div>
+                                                              );
+                                                          })}
+                                                      </div>
+
+                                                      {/* Progress bar showing progress to next level */}
+                                                      <div className="space-y-1">
+                                                          <div className="flex justify-between text-xs text-muted-foreground">
+                                                              <span>
+                                                                  {achievedLevel ? (
+                                                                      <span className="flex items-center gap-1 font-medium text-emerald-600">
+                                                                          ✓ Nível {achievedLevel} Atingido
+                                                                      </span>
+                                                                  ) : (
+                                                                      <span>Nenhum nível atingido</span>
+                                                                  )}
+                                                              </span>
+                                                              <span>
+                                                                  {nextLevel ? (
+                                                                      <span>Próximo: <span className="font-semibold text-primary">{nextLevel.name}</span> ({((realizado / nextLevel.value) * 100).toFixed(0)}%)</span>
+                                                                  ) : (
+                                                                      <span className="text-sky-600 font-bold">★ Nível Diamante!</span>
+                                                                  )}
+                                                              </span>
+                                                          </div>
+                                                          <Progress
+                                                              value={nextLevel ? Math.min(100, (realizado / nextLevel.value) * 100) : 100}
+                                                              className={`h-1.5 ${
+                                                                  nextLevel
+                                                                      ? nextLevel.name === 'Bronze' ? '[&>div]:bg-orange-500' :
+                                                                        nextLevel.name === 'Prata' ? '[&>div]:bg-slate-500' :
+                                                                        nextLevel.name === 'Ouro' ? '[&>div]:bg-yellow-500' :
+                                                                        '[&>div]:bg-sky-400'
+                                                                      : '[&>div]:bg-emerald-500'
+                                                              }`}
+                                                          />
+                                                      </div>
+                                                  </div>
+                                              ) : (
+                                                  <div className="space-y-1.5">
+                                                      <div className="flex justify-between text-xs text-muted-foreground">
+                                                          <span>Alvo: {formatCurrency(targetValue)}</span>
+                                                          <span>Atingimento: {achievement.toFixed(1)}%</span>
+                                                      </div>
+                                                      <Progress
+                                                          value={achievement}
+                                                          className={`h-1.5 ${
+                                                              achievement >= 100 ? '[&>div]:bg-emerald-500' :
+                                                              achievement >= 75  ? '[&>div]:bg-blue-500' :
+                                                              achievement >= 50  ? '[&>div]:bg-amber-500' :
+                                                              '[&>div]:bg-rose-500'
+                                                          }`}
+                                                      />
+                                                  </div>
+                                              )}
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <div className="flex h-48 flex-col items-center justify-center bg-muted/10 rounded-2xl">
+                      <Frown className="h-10 w-10 text-muted-foreground/50" />
+                      <p className="mt-4 text-center text-sm font-medium text-muted-foreground/70">
+                          Nenhum dado de filiais para exibir neste período.
+                      </p>
+                  </div>
+              )}
+          </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="overflow-hidden border-none shadow-xl hover:shadow-2xl transition-all duration-300 relative flex flex-col">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none"></div>
@@ -524,7 +892,7 @@ export default function DashboardPage() {
                         <Award className="h-5 w-5 text-yellow-500" />
                         Top 5 Vendedores
                     </CardTitle>
-                    <CardDescription>Maior % de atingimento nas metas de mercantil.</CardDescription>
+                    <CardDescription>Maior % de atingimento nas metas de mercantil em {selectedGroupName}.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0 flex-1">
                     {topSellers.length > 0 ? (
@@ -569,7 +937,7 @@ export default function DashboardPage() {
                         <Rocket className="h-5 w-5 text-primary" />
                         Metas em Destaque
                     </CardTitle>
-                    <CardDescription>Metas que estão próximas de serem alcançadas (75% ou mais).</CardDescription>
+                    <CardDescription>Metas em {selectedGroupName} próximas do objetivo (75% ou mais).</CardDescription>
                 </CardHeader>
                 <CardContent className="p-5 flex-1 bg-muted/10">
                     {highlightedGoals.length > 0 ? (

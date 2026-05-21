@@ -123,7 +123,7 @@ export default function PrintDeliveryTeamPaymentPage() {
                     <p className="text-muted-foreground print:text-xs">{formatDate(order.periodStartDate)} a {formatDate(order.periodEndDate)}</p>
                 </div>
                  <div className="space-y-1">
-                    <h3 className="font-semibold print:text-xs flex items-center gap-1.5"><Percent className="h-4 w-4"/>Comissão da Empresa</h3>
+                    <h3 className="font-semibold print:text-xs flex items-center gap-1.5"><Percent className="h-4 w-4"/>Retenção da Empresa</h3>
                     <p className="text-muted-foreground print:text-xs">{order.companyCommission}%</p>
                 </div>
             </div>
@@ -138,6 +138,39 @@ export default function PrintDeliveryTeamPaymentPage() {
                     <p className="font-semibold text-lg text-green-700 dark:text-green-200">{formatCurrency(order.totalDistributed)}</p>
                 </div>
             </div>
+
+             {order.teamsProduction && order.teamsProduction.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm print:text-xs">
+                  <Users className="h-4 w-4 text-muted-foreground" /> Produção por Equipe
+                </h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="print:p-1">Equipe (Motorista + Ajudantes)</TableHead>
+                      <TableHead className="text-center print:p-1">Nº Entregas</TableHead>
+                      <TableHead className="text-right print:p-1">Valor Bruto</TableHead>
+                      <TableHead className="text-right print:p-1">Valor Líquido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {order.teamsProduction.map((team, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="print:p-1">
+                          <span className="font-bold">{team.driverName}</span>
+                          {team.assistantNames.length > 0 && (
+                            <span className="text-muted-foreground"> + {team.assistantNames.join(" + ")}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center print:p-1">{team.ordersCount}</TableCell>
+                        <TableCell className="text-right print:p-1">{formatCurrency(team.totalValue)}</TableCell>
+                        <TableCell className="text-right print:p-1 font-semibold text-green-700 dark:text-green-200">{formatCurrency(team.netValue)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+             )}
 
              <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm print:text-xs"><Users className="h-4 w-4 text-muted-foreground"/> Pagamentos Individuais</h3>

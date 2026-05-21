@@ -146,9 +146,9 @@ export default function PrintSchedulePage() {
   const formatPhone = (value: string | undefined) => {
     if (!value) return "";
     value = value.replace(/\D/g, "");
-    if (value.length > 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    if (value.length > 10) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
     return value.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
-};
+  };
 
   const formatAddress = (address?: { address: string, number: string, complement?: string, neighborhood: string, city: string, state: string }) => {
     if (!address) return "Endereço não informado";

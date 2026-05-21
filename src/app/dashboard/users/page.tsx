@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Trash2, ShieldCheck, ShieldOff, Loader2, Pencil, ShieldAlert, Shield, Mail } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Trash2, ShieldCheck, ShieldOff, Loader2, Pencil, ShieldAlert, Shield, Mail, Search } from "lucide-react";
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, query } from "firebase/firestore";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, updateProfile as updateAuthProfile, sendPasswordResetEmail } from "firebase/auth";
@@ -85,6 +85,7 @@ export default function UsersPage() {
   const [loading, setLoading] = React.useState(true);
   const [open, setOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   const [currentUser, setCurrentUser] = React.useState<Partial<User> & { password?: string }>({});
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null);
@@ -92,6 +93,12 @@ export default function UsersPage() {
   const [userToResetPassword, setUserToResetPassword] = React.useState<User | null>(null);
 
   const isEditing = !!currentUser.id;
+
+  const filteredUsers = React.useMemo(() => {
+    if (!searchQuery) return users;
+    const queryLower = searchQuery.toLowerCase();
+    return users.filter(u => u.name?.toLowerCase().includes(queryLower));
+  }, [users, searchQuery]);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -387,10 +394,25 @@ export default function UsersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Lista de Usuários</CardTitle>
-            <CardDescription>
-              Total de {users.length} usuários cadastrados.
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Lista de Usuários</CardTitle>
+                <CardDescription>
+                  {searchQuery 
+                    ? `${filteredUsers.length} encontrado(s) de um total de ${users.length} cadastrados.` 
+                    : `Total de ${users.length} usuários cadastrados.`}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 max-w-sm w-full">
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="Pesquisar usuário pelo nome..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -410,80 +432,88 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id} className={user.disabled ? 'bg-muted/50 text-muted-foreground' : ''}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="people avatar"/>
-                            <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm">{user.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>{getBranchName(user.branchId)}</div>
-                        <div className="text-sm text-muted-foreground">{getRoleName(user.roleId)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.isAdmin ? "default" : "secondary"} className={user.disabled ? 'border' : ''}>
-                          {user.isAdmin ? <ShieldCheck className="mr-1 h-3.5 w-3.5" /> : <ShieldOff className="mr-1 h-3.5 w-3.5" />}
-                          {user.isAdmin ? "Admin" : "Usuário"}
-                        </Badge>
-                      </TableCell>
-                       <TableCell>
-                        <Badge variant={user.disabled ? "destructive" : "outline"} className={user.disabled ? '' : 'text-green-600 border-green-600/50'}>
-                          {user.disabled ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
-                          {user.disabled ? "Bloqueado" : "Ativo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenDialog(user)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToResetPassword(user);}}>
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Enviar redefinição de senha
-                                </DropdownMenuItem>
-                             </AlertDialogTrigger>
-                            <DropdownMenuSeparator />
-                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToToggleBlock(user); }}>
-                                    {user.disabled ? <Shield className="mr-2 h-4 w-4" /> : <ShieldAlert className="mr-2 h-4 w-4" />}
-                                    {user.disabled ? 'Desbloquear' : 'Bloquear'}
-                                </DropdownMenuItem>
-                             </AlertDialogTrigger>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onSelect={(e) => {
-                                  e.preventDefault();
-                                  setUserToDelete(user);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Deletar
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                        Nenhum usuário encontrado com o nome "{searchQuery}".
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <TableRow key={user.id} className={user.disabled ? 'bg-muted/50 text-muted-foreground' : ''}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="people avatar"/>
+                              <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{user.name}</div>
+                              <div className="text-sm">{user.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>{getBranchName(user.branchId)}</div>
+                          <div className="text-sm text-muted-foreground">{getRoleName(user.roleId)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.isAdmin ? "default" : "secondary"} className={user.disabled ? 'border' : ''}>
+                            {user.isAdmin ? <ShieldCheck className="mr-1 h-3.5 w-3.5" /> : <ShieldOff className="mr-1 h-3.5 w-3.5" />}
+                            {user.isAdmin ? "Admin" : "Usuário"}
+                          </Badge>
+                        </TableCell>
+                         <TableCell>
+                          <Badge variant={user.disabled ? "destructive" : "outline"} className={user.disabled ? '' : 'text-green-600 border-green-600/50'}>
+                            {user.disabled ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
+                            {user.disabled ? "Bloqueado" : "Ativo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleOpenDialog(user)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                               <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToResetPassword(user);}}>
+                                      <Mail className="mr-2 h-4 w-4" />
+                                      Enviar redefinição de senha
+                                  </DropdownMenuItem>
+                               </AlertDialogTrigger>
+                              <DropdownMenuSeparator />
+                               <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setUserToToggleBlock(user); }}>
+                                      {user.disabled ? <Shield className="mr-2 h-4 w-4" /> : <ShieldAlert className="mr-2 h-4 w-4" />}
+                                      {user.disabled ? 'Desbloquear' : 'Bloquear'}
+                                  </DropdownMenuItem>
+                               </AlertDialogTrigger>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    setUserToDelete(user);
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Deletar
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
               {userToDelete && (

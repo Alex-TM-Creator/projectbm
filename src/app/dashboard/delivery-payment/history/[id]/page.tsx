@@ -120,9 +120,9 @@ export default function PrintDeliveryPaymentPage() {
   const formatPhone = (value: string | undefined) => {
     if (!value) return "";
     value = value.replace(/\D/g, "");
-    if (value.length > 11) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    if (value.length > 10) return value.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
     return value.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
-};
+  };
 
   const getBranchName = (orderId: string, itemType: 'Pedido' | 'ASTEC'): string => {
       const relatedItem = allOrders.find(o => o.id === orderId);

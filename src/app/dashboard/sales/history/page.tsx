@@ -112,54 +112,86 @@ const MultiSelectFilter = ({
   selectedValues: string[];
   onSelectionChange: (value: string) => void;
 }) => {
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   const handleSelectAll = () => {
-    if (selectedValues.length === options.length) {
-      // Deselect all by calling onSelectionChange for each selected item
-      selectedValues.forEach(value => onSelectionChange(value));
+    const visibleOptions = options.filter(opt => 
+      opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const allVisibleSelected = visibleOptions.every(opt => selectedValues.includes(opt.value));
+
+    if (allVisibleSelected) {
+      visibleOptions.forEach(opt => {
+        if (selectedValues.includes(opt.value)) {
+          onSelectionChange(opt.value);
+        }
+      });
     } else {
-      // Select all unselected items
-      options.forEach(opt => {
+      visibleOptions.forEach(opt => {
         if (!selectedValues.includes(opt.value)) {
           onSelectionChange(opt.value);
         }
       });
     }
-  }
+  };
 
   const selectedLabels = selectedValues.length > 2
     ? `${selectedValues.length} selecionados`
     : options.filter(opt => selectedValues.includes(opt.value)).map(opt => opt.label).join(', ');
 
+  const filteredOptions = React.useMemo(() => {
+    if (!searchTerm) return options;
+    return options.filter(opt =>
+      opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchTerm]);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="w-full justify-between">
-          <span className="truncate">{selectedValues.length > 0 ? selectedLabels : placeholder}</span>
-          <ChevronDown className="h-4 w-4" />
+        <Button variant="outline" className="w-full justify-between h-11 bg-background font-normal border border-input rounded-md px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground">
+          <span className="truncate text-muted-foreground">{selectedValues.length > 0 ? (
+            <span className="font-semibold text-primary">{selectedLabels}</span>
+          ) : placeholder}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
-        <DropdownMenuLabel>{placeholder}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem
-          checked={options.length > 0 && selectedValues.length === options.length}
-          onCheckedChange={handleSelectAll}
-          onSelect={(e: Event) => e.preventDefault()}
-        >
-          Selecionar Todos
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuSeparator />
-        {options.map((option) => (
+      <DropdownMenuContent className="w-56 p-0" align="start">
+        <div className="p-2 border-b flex items-center gap-2">
+          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <input
+            placeholder="Pesquisar..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full text-xs bg-transparent outline-none border-none placeholder:text-muted-foreground"
+          />
+        </div>
+        <div className="max-h-[250px] overflow-y-auto p-1">
           <DropdownMenuCheckboxItem
-            key={option.value}
-            checked={selectedValues.includes(option.value)}
-            onCheckedChange={() => onSelectionChange(option.value)}
+            checked={filteredOptions.length > 0 && filteredOptions.every(opt => selectedValues.includes(opt.value))}
+            onCheckedChange={handleSelectAll}
             onSelect={(e: Event) => e.preventDefault()}
+            className="text-xs font-semibold text-primary"
           >
-            {option.label}
+            Selecionar Todos ({filteredOptions.length})
           </DropdownMenuCheckboxItem>
-        ))}
+          <DropdownMenuSeparator className="my-1" />
+          {filteredOptions.map((option) => (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={selectedValues.includes(option.value)}
+              onCheckedChange={() => onSelectionChange(option.value)}
+              onSelect={(e: Event) => e.preventDefault()}
+              className="text-xs"
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+          {filteredOptions.length === 0 && (
+            <div className="text-center py-4 text-xs text-muted-foreground">Nenhum resultado encontrado</div>
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -204,6 +236,8 @@ export default function SalesHistoryPage() {
   // Filters
   const [searchTerm, setSearchTerm] = React.useState("");
   const [branchFilter, setBranchFilter] = React.useState<string>("all");
+  const [branchSearchTerm, setBranchSearchTerm] = React.useState("");
+  const [isBranchPopoverOpen, setIsBranchPopoverOpen] = React.useState(false);
   const [selectedSellers, setSelectedSellers] = React.useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>([]);
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
@@ -1053,9 +1087,19 @@ export default function SalesHistoryPage() {
 
   }, [allUsers, currentUserData, userPermissions]);
 
+  const filteredBranches = React.useMemo(() => {
+    if (!branchSearchTerm) return branches;
+    return branches.filter(b => b.name.toLowerCase().includes(branchSearchTerm.toLowerCase()));
+  }, [branches, branchSearchTerm]);
+
+  const getBranchFilterName = (id: string) => {
+    return branches.find(b => b.id === id)?.name || id;
+  };
+
   const clearFilters = () => {
     setSearchTerm("");
     setBranchFilter("all");
+    setBranchSearchTerm("");
     setSelectedSellers([]);
     setSelectedStatuses([]);
     setDateRange(undefined);
@@ -1086,13 +1130,64 @@ export default function SalesHistoryPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="md:col-span-2"
                 />
-                <Select value={branchFilter} onValueChange={setBranchFilter}>
-                  <SelectTrigger><SelectValue placeholder="Filtrar por filial..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as Filiais</SelectItem>
-                    {branches.map(branch => <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover open={isBranchPopoverOpen} onOpenChange={setIsBranchPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between font-normal text-left"
+                    >
+                      {branchFilter !== "all" ? (
+                        <span className="truncate font-semibold text-primary">
+                          {getBranchFilterName(branchFilter)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Todas as Filiais</span>
+                      )}
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <div className="p-2 border-b flex items-center gap-2">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <input
+                        placeholder="Pesquisar filial..."
+                        value={branchSearchTerm}
+                        onChange={(e) => setBranchSearchTerm(e.target.value)}
+                        className="w-full text-xs bg-transparent outline-none border-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      <button
+                        className={`w-full text-left p-2 hover:bg-muted text-xs border-b last:border-0 transition-colors ${
+                          branchFilter === "all" ? "bg-muted font-semibold text-primary" : ""
+                        }`}
+                        onClick={() => {
+                          setBranchFilter("all");
+                          setIsBranchPopoverOpen(false);
+                        }}
+                      >
+                        Todas as Filiais
+                      </button>
+                      {filteredBranches.map((branch) => (
+                        <button
+                          key={branch.id}
+                          className={`w-full text-left p-2 hover:bg-muted text-xs border-b last:border-0 transition-colors ${
+                            branchFilter === branch.id ? "bg-muted font-semibold text-primary" : ""
+                          }`}
+                          onClick={() => {
+                            setBranchFilter(branch.id);
+                            setIsBranchPopoverOpen(false);
+                          }}
+                        >
+                          {branch.name}
+                        </button>
+                      ))}
+                      {filteredBranches.length === 0 && (
+                        <div className="text-center py-4 text-xs text-muted-foreground">Nenhuma filial encontrada</div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">

@@ -80,6 +80,14 @@ export default function CreateGoalPage() {
   const [loading, setLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isSuggesting, setIsSuggesting] = React.useState(false);
+  const [geminiApiKey, setGeminiApiKey] = React.useState("");
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("gemini_api_key") || "";
+      setGeminiApiKey(savedKey);
+    }
+  }, []);
 
   // State for the calculator
   const [realizadoAnterior, setRealizadoAnterior] = React.useState(0);
@@ -310,13 +318,17 @@ export default function CreateGoalPage() {
           toast({ title: "Faltam informações", description: "Selecione um tipo de meta e um grupo de períodos primeiro.", variant: "destructive"});
           return;
       }
+      if (!geminiApiKey) {
+          toast({ title: "Chave API não configurada", description: "Por favor, insira a chave da API Gemini no campo de distribuição.", variant: "destructive"});
+          return;
+      }
       setIsSuggesting(true);
       try {
           const input: WeeklyDistributionInput = {
               goalType: goalType.name,
               periods: selectedPeriods.map(p => ({ id: p.id, name: p.name })),
           };
-          const suggestion = await suggestWeeklyDistribution(input);
+          const suggestion = await suggestWeeklyDistribution(input, geminiApiKey);
           
           const newPesos: Record<string, number> = {};
           suggestion.distribution.forEach(item => {
@@ -580,17 +592,52 @@ export default function CreateGoalPage() {
           </Card>
           
            <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5"/> Distribuição (Opcional)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <p className="text-sm text-muted-foreground">
-                    Distribua o peso da meta ao longo dos períodos. A soma deve ser 100%.
+               <CardHeader>
+                   <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5"/> Distribuição (Opcional)</CardTitle>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                     Distribua o peso da meta ao longo dos períodos. A soma deve ser 100%.
                   </p>
-                   <Button variant="outline" size="sm" onClick={handleGetSuggestion} disabled={isSuggesting || selectedPeriods.length === 0}>
-                      {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Lightbulb className="mr-2 h-4 w-4"/>}
+                  
+                  <div className="flex flex-col md:flex-row gap-4 items-end bg-muted/40 p-4 rounded-xl border">
+                    <div className="flex-1 space-y-2 w-full">
+                      <Label htmlFor="geminiApiKey" className="text-xs font-semibold text-muted-foreground flex justify-between items-center w-full">
+                        <span>Chave da API Gemini</span>
+                        <a 
+                          href="https://aistudio.google.com/app/apikey" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-[10px] text-primary hover:underline font-normal"
+                        >
+                          Obter chave no Google AI Studio
+                        </a>
+                      </Label>
+                      <Input
+                        id="geminiApiKey"
+                        type="password"
+                        placeholder="Insira sua API Key do Gemini (salva no navegador)"
+                        value={geminiApiKey}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setGeminiApiKey(val);
+                          localStorage.setItem("gemini_api_key", val);
+                        }}
+                        className="bg-background h-9 rounded-lg"
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleGetSuggestion} 
+                      disabled={isSuggesting || selectedPeriods.length === 0 || !geminiApiKey}
+                      className="h-9 font-medium"
+                    >
+                      {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Lightbulb className="mr-2 h-4 w-4 text-amber-500"/>}
                       Sugerir Distribuição
-                  </Button>
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
                       {selectedPeriods.map(period => (
                           <div key={period.id} className="space-y-2">

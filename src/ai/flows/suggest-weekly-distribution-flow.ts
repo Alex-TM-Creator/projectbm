@@ -28,7 +28,10 @@ const WeeklyDistributionOutputSchema = z.object({
 export type WeeklyDistributionOutput = z.infer<typeof WeeklyDistributionOutputSchema>;
 
 
-export async function suggestWeeklyDistribution(input: WeeklyDistributionInput): Promise<WeeklyDistributionOutput> {
+export async function suggestWeeklyDistribution(input: WeeklyDistributionInput, apiKey?: string): Promise<WeeklyDistributionOutput> {
+  if (apiKey) {
+    process.env.GEMINI_API_KEY = apiKey;
+  }
   return suggestWeeklyDistributionFlow(input);
 }
 

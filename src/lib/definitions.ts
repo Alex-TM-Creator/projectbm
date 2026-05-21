@@ -250,6 +250,14 @@ export type DeliveryTeamPaymentOrder = {
   totalServiceValue: number;
   totalDistributed: number;
   results: DeliveryTeamPaymentOrderResult[];
+  teamsProduction?: {
+    key: string;
+    driverName: string;
+    assistantNames: string[];
+    ordersCount: number;
+    totalValue: number;
+    netValue: number;
+  }[];
   createdAt: any; // Firestore Timestamp
   status: 'pending' | 'paid';
   paidAt?: any; // Firestore Timestamp
@@ -1319,14 +1327,14 @@ export type AssemblyClosing = {
 };
 
 export type PurchaseSuggestion = {
-    supplierId: string;
-    supplierName: string;
-    products: {
-        productId: string;
-        productName: string;
-        quantityToOrder: number;
-        currentStock: number;
-        minimumStock: number;
-        maximumStock: number;
-    }[];
+  supplierId: string;
+  supplierName: string;
+  products: {
+    productId: string;
+    productName: string;
+    quantityToOrder: number;
+    currentStock: number;
+    minimumStock: number;
+    maximumStock: number;
+  }[];
 };

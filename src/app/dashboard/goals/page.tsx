@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Trash2, Loader2, Pencil, Target, BriefcaseBusiness, User as UserIcon, GitFork, Medal, Trophy, Award, Gem, Calendar, Copy, Eye, Check } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Trash2, Loader2, Pencil, Target, BriefcaseBusiness, User as UserIcon, GitFork, Medal, Trophy, Award, Gem, Calendar, Copy, Eye, Check, Search } from "lucide-react";
 import {
   collection,
   getDocs,
@@ -148,6 +148,7 @@ export default function GoalsPage() {
   const [activeCreateTab, setActiveCreateTab] = React.useState("branch");
   const [isViewing, setIsViewing] = React.useState(false);
   const [selectedPeriodGroupId, setSelectedPeriodGroupId] = React.useState<string | null>(null);
+  const [responsibleSearch, setResponsibleSearch] = React.useState("");
 
 
   // Form & Dialog state
@@ -260,11 +261,13 @@ export default function GoalsPage() {
   // Create Dialog Logic
   const handleOpenCreateDialog = () => {
     setCurrentGoal(JSON.parse(JSON.stringify(initialFormData)));
+    setResponsibleSearch("");
     setOpenCreate(true);
   };
   
   const handleCloseCreateDialog = () => {
     setCurrentGoal(initialFormData);
+    setResponsibleSearch("");
     setOpenCreate(false);
   };
 
@@ -295,6 +298,7 @@ export default function GoalsPage() {
       responsibleType: responsibleType,
     });
     setActiveCreateTab(responsibleType);
+    setResponsibleSearch("");
     setOpenCreate(true);
   };
   
@@ -660,6 +664,14 @@ export default function GoalsPage() {
       default: return [];
     }
   }, [currentGoal.responsibleType, branches, salespeople, roles]);
+
+  const filteredResponsibleOptions = React.useMemo(() => {
+    if (!responsibleSearch) return responsibleOptions;
+    const lowerSearch = responsibleSearch.toLowerCase();
+    return responsibleOptions.filter(opt =>
+      opt.name.toLowerCase().includes(lowerSearch)
+    );
+  }, [responsibleOptions, responsibleSearch]);
 
   const getResponsibleNameById = (id: string) => {
     return responsibleOptions.find(opt => opt.id === id)?.name || "Desconhecido";
@@ -1126,7 +1138,7 @@ export default function GoalsPage() {
                     </div>
                     <div className="space-y-2">
                         <Label>Responsável pela Meta</Label>
-                        <Tabs value={currentGoal.responsibleType} onValueChange={(v) => handleInputChange('responsibleType', v as 'branch' | 'user' | 'role')} className="w-full">
+                        <Tabs value={currentGoal.responsibleType} onValueChange={(v) => { handleInputChange('responsibleType', v as 'branch' | 'user' | 'role'); setResponsibleSearch(""); }} className="w-full">
                           <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="branch">Por Filial</TabsTrigger>
                             <TabsTrigger value="user">Por Vendedor</TabsTrigger>
@@ -1140,8 +1152,19 @@ export default function GoalsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] max-h-60 overflow-y-auto">
+                                    <div className="p-2 border-b flex items-center gap-2 sticky top-0 bg-popover z-10">
+                                        <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                        <input
+                                            placeholder={`Pesquisar ${responsibleLabel.toLowerCase()}...`}
+                                            value={responsibleSearch}
+                                            onChange={(e) => setResponsibleSearch(e.target.value)}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-full text-xs bg-transparent outline-none border-none placeholder:text-muted-foreground"
+                                        />
+                                    </div>
                                     <DropdownMenuLabel>Responsáveis</DropdownMenuLabel>
-                                    {responsibleOptions.map(opt => (
+                                    {filteredResponsibleOptions.map(opt => (
                                         <DropdownMenuCheckboxItem
                                             key={opt.id}
                                             checked={currentGoal.responsibleIds.includes(opt.id)}
@@ -1151,6 +1174,11 @@ export default function GoalsPage() {
                                             {opt.name}
                                         </DropdownMenuCheckboxItem>
                                     ))}
+                                    {filteredResponsibleOptions.length === 0 && (
+                                        <div className="p-4 text-xs text-center text-muted-foreground">
+                                            Nenhum resultado encontrado
+                                        </div>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
